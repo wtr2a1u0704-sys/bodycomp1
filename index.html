@@ -1,0 +1,2994 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BodyComp トラッカー</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #12151c;
+    --surface: #1c2130;
+    --surface2: #252c3d;
+    --border: #3a4460;
+    --accent: #00e5a0;
+    --accent2: #ff6b35;
+    --text: #f0f2fa;
+    --muted: #a8b0cc;
+    --protein: #ff6b6b;
+    --carb: #ffd166;
+    --fat: #06d6a0;
+    --minus: #00e5a0;
+    --plus: #ff6b35;
+  }
+
+  /* ── Muscle Judge Card ── */
+  .judge-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 18px; margin-bottom: 14px;
+  }
+  .judge-score-row {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 14px;
+  }
+  .judge-score-ring {
+    position: relative; width: 80px; height: 80px; flex-shrink: 0;
+  }
+  .judge-score-ring svg { transform: rotate(-90deg); }
+  .judge-score-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .judge-score-val {
+    font-family: 'Bebas Neue', sans-serif; font-size: 28px; line-height: 1;
+  }
+  .judge-score-label { font-size: 9px; color: var(--text); opacity: 0.6; }
+  .judge-grade {
+    font-family: 'Bebas Neue', sans-serif; font-size: 42px; line-height: 1;
+    letter-spacing: 2px;
+  }
+  .judge-headline { font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .judge-items { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .judge-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.5;
+  }
+  .judge-item-ok { background: rgba(0,229,160,0.08); border: 1px solid rgba(0,229,160,0.2); }
+  .judge-item-warn { background: rgba(255,209,102,0.08); border: 1px solid rgba(255,209,102,0.2); }
+  .judge-item-bad { background: rgba(255,107,53,0.08); border: 1px solid rgba(255,107,53,0.25); }
+  .judge-item-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .judge-ai-comment {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px; font-size: 12px;
+    line-height: 1.7; color: var(--text);
+  }
+  .judge-ai-label { font-size: 10px; color: var(--accent); font-weight: 700; letter-spacing: 1px; margin-bottom: 6px; }
+  .judge-btn {
+    width: 100%; padding: 10px; background: var(--surface2);
+    border: 1px solid var(--accent); border-radius: 8px; color: var(--accent);
+    font-family: 'Noto Sans JP', sans-serif; font-size: 12px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; margin-top: 10px;
+  }
+  .judge-btn:hover { background: var(--accent); color: #000; }
+  .judge-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .grade-s { color: #ffd700; }
+  .grade-a { color: #00e5a0; }
+  .grade-b { color: #74c7ff; }
+  .grade-c { color: #ffd166; }
+  .grade-d { color: #ff6b35; }
+
+  /* ── Body Composition Card ── */
+  .body-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+  .body-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .body-stat-wrap { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+  .body-stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--accent); line-height: 1; }
+  .body-stat-unit { font-size: 10px; color: var(--text); opacity: 0.6; }
+  .body-stat-label { font-size: 11px; color: var(--text); opacity: 0.75; margin-top: 2px; }
+  .body-stat-delta { font-size: 10px; margin-top: 3px; font-weight: 700; }
+  .delta-down { color: #00e5a0; }
+  .delta-up-good { color: #ffd166; }
+  .delta-neutral { color: var(--muted); }
+  .activity-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .atab { padding: 5px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+  .atab.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+  .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .history-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); margin-bottom: 5px; font-size: 12px; }
+  .history-date { color: var(--text); opacity: 0.6; min-width: 60px; }
+  .history-vals { display: flex; gap: 12px; flex-wrap: wrap; }
+  .history-val { color: var(--text); }
+  .history-val span { color: var(--accent); font-weight: 700; }
+  .history-del { background: none; border: none; color: var(--text); opacity: 0.4; cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 4px; }
+  .history-del:hover { opacity: 1; color: var(--accent2); }
+  .tdee-auto-badge { font-size: 10px; background: rgba(0,229,160,0.15); color: var(--accent); border: 1px solid rgba(0,229,160,0.3); border-radius: 20px; padding: 2px 8px; margin-left: 6px; }
+
+  /* ── Surplus Warning Theme ── */
+  body { transition: background 0.8s ease; }
+
+  body.surplus-warning {
+    --bg: #1a0a08;
+    --surface: #280e0a;
+    --surface2: #341410;
+    --border: #5a2018;
+    --accent: #ff6b35;
+    --minus: #ff6b35;
+  }
+
+  .surplus-banner {
+    display: none;
+    background: rgba(255,60,30,0.15);
+    border: 1px solid rgba(255,60,30,0.5);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    text-align: center;
+    animation: pulse-warn 2s ease-in-out infinite;
+  }
+  body.surplus-warning .surplus-banner { display: block; }
+
+  @keyframes pulse-warn {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,60,30,0); }
+    50% { box-shadow: 0 0 16px 2px rgba(255,60,30,0.25); }
+  }
+
+  .surplus-banner-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ff6b35;
+    letter-spacing: 0.5px;
+  }
+  .surplus-banner-sub {
+    font-size: 11px;
+    color: var(--text);
+    opacity: 0.7;
+    margin-top: 3px;
+  }
+
+  body.surplus-warning header {
+    border-bottom-color: rgba(255,60,30,0.3);
+  }
+  body.surplus-warning .logo {
+    color: #ff6b35;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Meal Log Page ── */
+  .mlog-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .mlog-month-nav { display: flex; align-items: center; gap: 10px; }
+  .mlog-month-label { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; }
+  .mlog-month-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 14px;
+    transition: background 0.2s; display: flex; align-items: center; justify-content: center;
+  }
+  .mlog-month-btn:hover { background: var(--border); }
+  .mlog-day-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; margin-bottom: 10px; overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .mlog-day-card:hover { border-color: var(--accent); }
+  .mlog-day-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; cursor: pointer;
+  }
+  .mlog-day-left { display: flex; align-items: center; gap: 10px; }
+  .mlog-day-date {
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; line-height: 1;
+    min-width: 44px;
+  }
+  .mlog-day-dow {
+    font-size: 10px; color: var(--text); opacity: 0.5; font-weight: 700;
+  }
+  .mlog-day-summary { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .mlog-kcal-badge {
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px; line-height: 1;
+  }
+  .mlog-diff-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .mlog-diff-deficit { background: rgba(0,229,160,0.12); color: var(--accent); }
+  .mlog-diff-surplus { background: rgba(255,107,53,0.12); color: var(--accent2); }
+  .mlog-chevron {
+    font-size: 14px; color: var(--text); opacity: 0.3;
+    transition: transform 0.2s; flex-shrink: 0;
+  }
+  .mlog-day-card.open .mlog-chevron { transform: rotate(90deg); }
+  .mlog-day-body { display: none; border-top: 1px solid var(--border); padding: 10px 14px; }
+  .mlog-day-card.open .mlog-day-body { display: block; }
+  .mlog-meal-group { margin-bottom: 8px; }
+  .mlog-meal-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 0 3px; border-bottom: 1px solid var(--border);
+    margin-bottom: 4px; display: flex; justify-content: space-between;
+  }
+  .mlog-meal-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 8px; border-radius: 7px; background: var(--surface2);
+    border: 1px solid var(--border); margin-bottom: 3px; font-size: 12px;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .mlog-meal-item:hover { background: var(--border); }
+  .mlog-meal-name { flex: 1; }
+  .mlog-meal-macros { font-size: 9px; color: var(--text); opacity: 0.5; margin-top: 1px; }
+  .mlog-meal-kcal { font-family: 'Bebas Neue', sans-serif; font-size: 16px; flex-shrink: 0; margin-left: 8px; }
+  .mlog-pfc-row { display: flex; gap: 6px; margin-top: 8px; }
+  .mlog-pfc-chip {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px; text-align: center;
+  }
+  .mlog-pfc-val { font-family: 'Bebas Neue', sans-serif; font-size: 16px; line-height: 1; }
+  .mlog-pfc-label { font-size: 9px; color: var(--text); opacity: 0.5; margin-top: 1px; }
+  .mlog-no-record { text-align: center; color: var(--text); opacity: 0.35; font-size: 13px; padding: 40px 0; }
+  .mlog-jump-btn {
+    font-size: 11px; color: var(--accent); background: none; border: none;
+    cursor: pointer; padding: 2px 6px; font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+  }
+
+  /* ── Jump Bar ── */
+  .jump-bar-wrap {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .jump-bar-wrap::-webkit-scrollbar { display: none; }
+  .jump-bar {
+    display: flex;
+    gap: 4px;
+    padding: 8px 16px;
+    max-width: 680px;
+    margin: 0 auto;
+    white-space: nowrap;
+  }
+  .jump-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.18s;
+    opacity: 0.7;
+  }
+  .jump-btn:hover { border-color: var(--accent); color: var(--accent); opacity: 1; }
+  .jump-btn.cal-jump { border-color: rgba(0,229,160,0.4); color: var(--accent); }
+  .jump-btn.cal-jump:hover { background: var(--accent); color: #000; }
+
+  /* ── Page Tabs ── */
+  .page-tabs-wrap {
+    background: var(--bg); border-bottom: 1px solid var(--border);
+  }
+  .page-tabs {
+    display: flex; max-width: 680px; margin: 0 auto; padding: 0 20px;
+  }
+  .page-tab {
+    padding: 10px 20px; font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    background: none; border: none; color: var(--text); opacity: 0.45;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .page-tab-active { color: var(--accent) !important; opacity: 1 !important; border-bottom-color: var(--accent) !important; }
+  .page-tab:hover { opacity: 0.8; }
+
+  /* ── Calendar ── */
+  .cal-page { padding: 16px 20px; max-width: 680px; margin: 0 auto; }
+  .cal-month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cal-month-label { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; }
+  .cal-month-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 16px;
+    transition: background 0.2s; display: flex; align-items: center; justify-content: center;
+  }
+  .cal-month-btn:hover { background: var(--border); }
+
+  .cal-summary {
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 16px;
+  }
+  .cal-sum-chip {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 6px; text-align: center;
+  }
+  .cal-sum-val { font-family: 'Bebas Neue', sans-serif; font-size: 20px; line-height: 1; }
+  .cal-sum-label { font-size: 9px; color: var(--text); opacity: 0.55; margin-top: 3px; }
+
+  .cal-dow-row { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 3px; }
+  .cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--text); opacity: 0.45; padding: 3px 0; }
+  .cal-dow:first-child { color: #ff7474; opacity: 0.8; }
+  .cal-dow:last-child  { color: #74b3ff; opacity: 0.8; }
+
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+  .cal-cell {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 9px;
+    aspect-ratio: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.18s; position: relative; overflow: hidden;
+    min-height: 48px;
+  }
+  .cal-cell:hover { border-color: var(--accent); transform: scale(1.05); z-index: 2; }
+  .cal-cell.cal-empty { background: transparent; border-color: transparent; cursor: default; pointer-events: none; }
+  .cal-cell.cal-today { border-color: var(--accent); border-width: 2px; }
+  .cal-cell.cal-selected { border-color: #fff !important; border-width: 2px !important; box-shadow: 0 0 10px rgba(255,255,255,0.12); }
+  .cal-cell.cal-deficit { border-color: rgba(0,229,160,0.35); }
+  .cal-cell.cal-surplus { border-color: rgba(255,107,53,0.35); }
+  .cal-fill { position: absolute; bottom: 0; left: 0; right: 0; }
+  .cal-day-num { font-size: 10px; font-weight: 700; z-index: 1; line-height: 1; }
+  .cal-kcal-lbl { font-family: 'Bebas Neue', sans-serif; font-size: 12px; z-index: 1; line-height: 1; margin-top: 1px; }
+  .cal-diff-lbl { font-size: 8px; z-index: 1; font-weight: 700; margin-top: 1px; }
+
+  /* Detail panel */
+  .cal-detail {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 18px; margin-top: 14px; display: none;
+  }
+  .cal-detail.visible { display: block; }
+  .cal-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .cal-detail-date { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; }
+  .cal-detail-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px 8px; }
+  .cal-bal-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; text-align: center; }
+  .cal-bal-val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; line-height: 1; }
+  .cal-bal-label { font-size: 10px; color: var(--text); opacity: 0.6; margin-top: 2px; }
+  .cal-diff-badge { text-align: center; padding: 8px; border-radius: 10px; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+  .cal-diff-badge.deficit { background: rgba(0,229,160,0.1); color: var(--accent); border: 1px solid rgba(0,229,160,0.3); }
+  .cal-diff-badge.surplus { background: rgba(255,107,53,0.1); color: var(--accent2); border: 1px solid rgba(255,107,53,0.3); }
+  .cal-macro-row { display: flex; flex-direction: column; gap: 3px; margin-bottom: 7px; }
+  .cal-macro-labels { display: flex; justify-content: space-between; font-size: 11px; }
+  .cal-bar-track { height: 5px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+  .cal-bar-fill  { height: 100%; border-radius: 99px; transition: width 0.5s; }
+  .cal-meal-group { margin-bottom: 9px; }
+  .cal-meal-header {
+    font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent); padding: 5px 0 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px;
+  }
+  .cal-meal-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 8px; border-radius: 7px; font-size: 11px;
+    background: var(--surface2); border: 1px solid var(--border); margin-bottom: 3px;
+  }
+  .cal-meal-kcal { font-family: 'Bebas Neue', sans-serif; font-size: 16px; flex-shrink: 0; }
+  .cal-meal-macros { font-size: 9px; color: var(--text); opacity: 0.5; margin-top: 1px; }
+  .cal-judge-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px; font-size: 12px; margin-bottom: 12px;
+  }
+  .cal-judge-grade { font-family: 'Bebas Neue', sans-serif; font-size: 20px; }
+  .cal-no-data { text-align: center; color: var(--text); opacity: 0.35; font-size: 12px; padding: 16px 0; }
+
+  @media (max-width: 480px) {
+    .cal-summary { grid-template-columns: 1fr 1fr; }
+    .cal-cell { min-height: 42px; }
+    .cal-diff-lbl { display: none; }
+  }
+
+  /* ── Chart ── */
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 16px; margin-top: 14px;
+  }
+  .chart-title-row {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;
+  }
+  .chart-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text); opacity: 0.7; }
+  .chart-legend { display: flex; gap: 12px; font-size: 10px; }
+  .chart-legend span { display: flex; align-items: center; gap: 4px; color: var(--text); opacity: 0.65; }
+  .chart-legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .chart-wrap { position: relative; width: 100%; overflow-x: auto; }
+  .chart-wrap svg { display: block; min-width: 100%; }
+  .chart-no-data { text-align: center; color: var(--text); opacity: 0.35; font-size: 12px; padding: 30px 0; }
+
+  /* ── Body Chart ── */
+  .body-chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 16px; margin-top: 14px;
+  }
+  .body-chart-filter {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .bcf-btn {
+    padding: 4px 11px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); opacity: 0.55;
+    font-family: 'Noto Sans JP', sans-serif; font-size: 11px; font-weight: 700;
+    cursor: pointer; transition: all 0.18s;
+  }
+  .bcf-btn.on { opacity: 1; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; min-height: 100vh; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 12px; border-bottom: 1px solid var(--border);
+  }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; color: var(--accent); }
+  .date-nav { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .date-nav button {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: background 0.2s;
+  }
+  .date-nav button:hover { background: var(--border); }
+
+  .main { padding: 16px 20px; max-width: 680px; margin: 0 auto; }
+
+  /* ── ENERGY BALANCE BAR ── */
+  .balance-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 18px; margin-bottom: 16px;
+  }
+  .balance-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text); margin-bottom: 14px;
+  }
+
+  .balance-numbers {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; text-align: center;
+  }
+  .bn-item { display: flex; flex-direction: column; gap: 3px; }
+  .bn-label { font-size: 10px; color: var(--text); letter-spacing: 1px; opacity: 0.7; }
+  .bn-val { font-family: 'Bebas Neue', sans-serif; font-size: 26px; line-height: 1; }
+  .bn-unit { font-size: 10px; color: var(--text); opacity: 0.65; }
+  .bn-tdee { color: var(--text); }
+  .bn-intake { color: var(--accent); }
+  .bn-diff-pos { color: var(--plus); }
+  .bn-diff-neg { color: var(--minus); }
+
+  /* balance bar */
+  .balance-bar-wrap { margin-bottom: 10px; }
+  .balance-bar-labels {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--text); opacity: 0.6; margin-bottom: 5px;
+  }
+  .balance-bar-track {
+    height: 20px; background: var(--surface2);
+    border-radius: 10px; overflow: hidden; position: relative;
+    border: 1px solid var(--border);
+  }
+  /* center line */
+  .balance-bar-track::after {
+    content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+    width: 2px; background: var(--border); z-index: 2;
+  }
+  .balance-fill {
+    position: absolute; top: 0; height: 100%;
+    border-radius: 4px; transition: all 0.6s ease;
+  }
+  .balance-status {
+    text-align: center; font-size: 13px; font-weight: 700;
+    padding: 8px 12px; border-radius: 10px; margin-top: 10px;
+    transition: all 0.4s;
+  }
+  .status-deficit { background: rgba(0,229,160,0.12); color: var(--accent); border: 1px solid rgba(0,229,160,0.3); }
+  .status-surplus { background: rgba(255,107,53,0.12); color: var(--plus); border: 1px solid rgba(255,107,53,0.3); }
+  .status-neutral { background: rgba(122,128,153,0.1); color: var(--muted); border: 1px solid var(--border); }
+
+  /* TDEE breakdown */
+  .tdee-breakdown {
+    display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;
+  }
+  .tdee-chip {
+    font-size: 11px; color: var(--text); opacity: 0.75; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px;
+  }
+
+  /* ── Ring + Macros ── */
+  .goal-ring-section { display: flex; gap: 16px; margin-bottom: 16px; align-items: center; }
+  .ring-wrap { position: relative; width: 130px; height: 130px; flex-shrink: 0; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+  }
+  .ring-kcal { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--accent); line-height: 1; }
+  .ring-label { font-size: 10px; color: var(--text); opacity: 0.65; margin-top: 2px; }
+  .ring-remain { font-size: 10px; color: var(--text); margin-top: 4px; font-weight: 500; }
+
+  .goal-stats { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .macro-row { display: flex; flex-direction: column; gap: 4px; }
+  .macro-label-row { display: flex; justify-content: space-between; font-size: 11px; }
+  .macro-name { color: var(--text); }
+  .bar-track { height: 6px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+
+  /* ── Add Meal ── */
+  .input-mode-tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .imode-tab {
+    flex:1; padding:8px 4px; border-radius:10px; border:1px solid var(--border);
+    background:var(--surface2); color:var(--text); opacity:0.55;
+    font-family:'Noto Sans JP',sans-serif; font-size:12px; font-weight:700;
+    cursor:pointer; transition:all 0.2s; text-align:center;
+  }
+  .imode-tab.active { background:var(--accent); border-color:var(--accent); color:#000; opacity:1; }
+  .img-drop-zone {
+    border:2px dashed var(--border); border-radius:12px; padding:20px;
+    text-align:center; cursor:pointer; transition:all 0.2s; margin-bottom:10px;
+    position:relative;
+  }
+  .img-drop-zone:hover, .img-drop-zone.drag-over { border-color:var(--accent); background:rgba(0,229,160,0.05); }
+  .img-drop-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .img-preview-wrap { margin-bottom:10px; position:relative; display:none; }
+  .img-preview-wrap img { width:100%; max-height:200px; object-fit:cover; border-radius:10px; display:block; }
+  .img-preview-clear {
+    position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.6);
+    border:none; color:#fff; border-radius:50%; width:26px; height:26px;
+    font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .img-result-list { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .img-result-item {
+    background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+    padding:10px 12px; cursor:pointer; transition:background 0.15s;
+  }
+  .img-result-item:hover { background:var(--border); }
+  .img-result-item.selected { border-color:var(--accent); background:rgba(0,229,160,0.07); }
+  .img-result-name { font-size:13px; font-weight:600; margin-bottom:4px; }
+  .img-result-chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .img-result-chip { font-size:11px; color:var(--accent); font-family:'Bebas Neue',sans-serif; font-size:14px; }
+  .img-result-chip span { font-family:'Noto Sans JP',sans-serif; font-size:10px; color:var(--text); opacity:0.6; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .card-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text); margin-bottom: 12px; }
+  .meal-type-tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab {
+    padding: 5px 11px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--text); opacity: 0.7;
+    font-family: 'Noto Sans JP', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.2s;
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+
+  .input-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 7px; margin-bottom: 10px; }
+  @media (max-width: 480px) {
+    .input-grid { grid-template-columns: 1fr 1fr; }
+    .input-grid .name-field { grid-column: 1/-1; }
+    .balance-numbers { grid-template-columns: 1fr 1fr 1fr; }
+    .bn-val { font-size: 20px; }
+  }
+  .field-wrap { display: flex; flex-direction: column; gap: 3px; }
+  .field-label { font-size: 10px; color: var(--text); opacity: 0.75; letter-spacing: 1px; }
+  input[type="text"], input[type="number"] {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 13px;
+    padding: 8px 9px; width: 100%; outline: none; transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--accent); }
+  .add-btn {
+    width: 100%; padding: 10px; background: var(--accent); border: none;
+    border-radius: 8px; color: #000; font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 1px; transition: opacity 0.2s;
+  }
+  .add-btn:hover { opacity: 0.85; }
+
+  .lookup-btn {
+    padding: 8px 12px; background: var(--surface2); border: 1px solid var(--accent);
+    border-radius: 8px; color: var(--accent); font-family: 'Noto Sans JP', sans-serif;
+    font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    transition: all 0.2s; height: 36px;
+  }
+  .lookup-btn:hover { background: var(--accent); color: #000; }
+  .lookup-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .preview-chip {
+    display: flex; flex-direction: column; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; min-width: 64px;
+  }
+  .chip-label { font-size: 10px; color: var(--muted); }
+  .chip-val { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--accent); line-height: 1.1; }
+
+  details summary::-webkit-details-marker { display: none; }
+
+  /* ── Eating Out Preset ── */
+  .preset-step { margin-bottom: 14px; }
+  .preset-step-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; margin-bottom: 8px; font-weight: 700; }
+  .preset-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pchip {
+    padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif; font-size: 12px;
+    cursor: pointer; transition: all 0.18s; text-align: center; line-height: 1.4;
+  }
+  .pchip:hover { border-color: var(--accent); color: var(--text); }
+  .pchip-active { background: var(--accent) !important; border-color: var(--accent) !important; color: #000 !important; font-weight: 700; }
+  .counter-btn {
+    width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); font-size: 18px;
+    cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center;
+  }
+  .counter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .drink-sub { font-size: 9px; color: var(--text); opacity: 0.6; display:block; margin-top:1px; }
+  .edit-tab {
+    padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.2s;
+  }
+  .edit-tab-active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+  .pchip-active .drink-sub { color: rgba(0,0,0,0.6); }
+  .drink-counter-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-radius: 10px; background: var(--surface2);
+    border: 1px solid var(--border); margin-bottom: 6px;
+  }
+  .drink-counter-name { font-size: 13px; font-weight: 500; }
+  .drink-counter-controls { display: flex; align-items: center; gap: 8px; }
+  .dcup-val { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--accent); min-width: 24px; text-align:center; }
+
+  /* ── Log ── */
+  .log-section { margin-bottom: 14px; }
+  .log-group { margin-bottom: 10px; }
+  .log-group-header {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent); padding: 6px 0 5px; border-bottom: 1px solid var(--border); margin-bottom: 5px;
+  }
+  .log-group-kcal { color: var(--muted); font-weight: 400; }
+  .log-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 11px; border-radius: 10px; background: var(--surface);
+    margin-bottom: 4px; border: 1px solid var(--border); transition: background 0.2s;
+  }
+  .log-item:hover { background: var(--surface2); }
+  .log-name { font-size: 13px; font-weight: 500; }
+  .log-macros { font-size: 11px; color: var(--text); opacity: 0.65; margin-top: 1px; }
+  .log-kcal { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--text); }
+  .log-del, .log-edit {
+    background: none; border: none; cursor: pointer;
+    font-size: 15px; padding: 4px 5px; border-radius: 6px; transition: background 0.2s; opacity: 0.8;
+  }
+  .log-del:hover { background: rgba(255,107,53,0.15); }
+  .log-edit:hover { background: rgba(0,229,160,0.12); }
+  .empty-state { text-align: center; color: var(--muted); font-size: 13px; padding: 18px 0; }
+
+  /* ── Settings ── */
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .settings-grid .field-wrap:first-child { grid-column: 1/-1; }
+  .save-btn {
+    width: 100%; margin-top: 10px; padding: 9px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 12px;
+    font-weight: 700; cursor: pointer; letter-spacing: 1px; transition: border-color 0.2s, color 0.2s;
+  }
+  .save-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Back to Top ── */
+  .back-to-top {
+    position: fixed; bottom: 24px; right: 20px; z-index: 200;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); font-size: 18px; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transition: all 0.2s;
+  }
+  .back-to-top.visible { display: flex; }
+  .back-to-top:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  .toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--accent); color: #000; font-size: 13px; font-weight: 700;
+    padding: 10px 16px; border-radius: 10px; opacity: 0;
+    transform: translateY(10px); transition: all 0.3s; pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">BODYCOMP</div>
+  <div class="date-nav" id="date-nav-wrap">
+    <button onclick="changeDay(-1)">‹</button>
+    <span id="current-date"></span>
+    <button onclick="changeDay(1)">›</button>
+  </div>
+</header>
+
+<!-- Page tabs -->
+<div class="jump-bar-wrap" id="jump-bar-wrap">
+  <div class="jump-bar" id="jump-bar">
+    <button class="jump-btn" onclick="jumpTo('sec-balance')">⚡ 収支</button>
+    <button class="jump-btn" onclick="jumpTo('muscle-judge-card')">💪 筋肉スコア</button>
+    <button class="jump-btn" onclick="jumpTo('sec-add-meal')">🍽 食事追加</button>
+    <button class="jump-btn" onclick="jumpTo('eating-out-card')">🍻 外食</button>
+    <button class="jump-btn" onclick="jumpTo('sec-body')">📊 体組成</button>
+    <button class="jump-btn" onclick="jumpTo('sec-settings')">🎯 目標設定</button>
+    <button class="jump-btn cal-jump" onclick="switchPage('meallog');window.scrollTo({top:0})">🗒 食事ログ</button>
+    <button class="jump-btn cal-jump" onclick="switchPage('calendar');window.scrollTo({top:0})">📅 カレンダー</button>
+  </div>
+</div>
+
+<div class="page-tabs-wrap">
+  <div class="page-tabs">
+    <button class="page-tab page-tab-active" id="tab-record" onclick="switchPage('record')">📝 記録</button>
+    <button class="page-tab" id="tab-meallog" onclick="switchPage('meallog')">🗒 食事ログ</button>
+    <button class="page-tab" id="tab-calendar" onclick="switchPage('calendar')">📅 カレンダー</button>
+  </div>
+</div>
+
+<div id="page-record"><div class="main">
+
+  <!-- Surplus Warning Banner -->
+  <div class="surplus-banner">
+    <div class="surplus-banner-text">⚠️ 本日はカロリーオーバーです！</div>
+    <div class="surplus-banner-sub" id="surplus-banner-amount"></div>
+  </div>
+
+  <!-- ENERGY BALANCE -->
+  <div class="balance-card" id="sec-balance">
+    <div class="balance-title">エネルギー収支</div>
+
+    <div class="balance-numbers">
+      <div class="bn-item">
+        <div class="bn-label">消費カロリー</div>
+        <div class="bn-val bn-tdee" id="bn-tdee">2781</div>
+        <div class="bn-unit">kcal / 日</div>
+      </div>
+      <div class="bn-item">
+        <div class="bn-label">摂取カロリー</div>
+        <div class="bn-val bn-intake" id="bn-intake">0</div>
+        <div class="bn-unit">kcal</div>
+      </div>
+      <div class="bn-item">
+        <div class="bn-label">収支</div>
+        <div class="bn-val bn-diff-neg" id="bn-diff">−2781</div>
+        <div class="bn-unit" id="bn-diff-label">kcal 赤字</div>
+      </div>
+    </div>
+
+    <!-- Visual bar: center = TDEE, left = deficit, right = surplus -->
+    <div class="balance-bar-wrap">
+      <div class="balance-bar-labels">
+        <span>← 赤字（脂肪燃焼）</span>
+        <span>消費量</span>
+        <span>黒字（体重増加）→</span>
+      </div>
+      <div class="balance-bar-track" id="balance-bar-track">
+        <div class="balance-fill" id="balance-fill"></div>
+      </div>
+    </div>
+
+    <div class="balance-status status-deficit" id="balance-status">まだ食事の記録がありません</div>
+
+    <div class="tdee-breakdown">
+      <div class="tdee-chip" id="tdee-chip-bmr">🧬 基礎代謝 1,795 kcal</div>
+      <div class="tdee-chip" id="tdee-chip-act">🏃 活動消費 +986 kcal</div>
+      <div class="tdee-chip" id="tdee-chip-goal">🎯 目標 2,500 kcal</div>
+    </div>
+  </div>
+
+  <!-- Ring + Macros -->
+  <div class="goal-ring-section">
+    <div class="ring-wrap">
+      <svg width="130" height="130" viewBox="0 0 130 130">
+        <circle cx="65" cy="65" r="54" fill="none" stroke="#252c3d" stroke-width="11"/>
+        <circle id="ring-progress" cx="65" cy="65" r="54" fill="none" stroke="#00e5a0"
+          stroke-width="11" stroke-linecap="round"
+          stroke-dasharray="339.3" stroke-dashoffset="339.3"
+          style="transition:stroke-dashoffset 0.6s ease"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-kcal" id="ring-kcal">0</div>
+        <div class="ring-label">kcal 摂取</div>
+        <div class="ring-remain" id="ring-remain">目標まで --</div>
+      </div>
+    </div>
+    <div class="goal-stats">
+      <div class="macro-row">
+        <div class="macro-label-row">
+          <span class="macro-name">タンパク質</span>
+          <span class="macro-val" id="p-val">0 / 150g</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="p-bar" style="background:var(--protein);width:0%"></div></div>
+      </div>
+      <div class="macro-row">
+        <div class="macro-label-row">
+          <span class="macro-name">炭水化物</span>
+          <span class="macro-val" id="c-val">0 / 200g</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="c-bar" style="background:var(--carb);width:0%"></div></div>
+      </div>
+      <div class="macro-row">
+        <div class="macro-label-row">
+          <span class="macro-name">脂質</span>
+          <span class="macro-val" id="f-val">0 / 70g</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="f-bar" style="background:var(--fat);width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Muscle Judge Card -->
+  <div class="judge-card" id="muscle-judge-card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span>💪 筋肉増大スコア</span>
+      <span style="font-size:10px;color:var(--text);opacity:0.5;" id="judge-updated-at">未評価</span>
+    </div>
+
+    <!-- Score ring + grade -->
+    <div class="judge-score-row">
+      <div class="judge-score-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="32" fill="none" stroke="var(--surface2)" stroke-width="8"/>
+          <circle id="judge-ring-arc" cx="40" cy="40" r="32" fill="none" stroke="#00e5a0"
+            stroke-width="8" stroke-linecap="round"
+            stroke-dasharray="201.1" stroke-dashoffset="201.1"
+            style="transition:stroke-dashoffset 0.8s ease,stroke 0.4s"/>
+        </svg>
+        <div class="judge-score-center">
+          <div class="judge-score-val" id="judge-score-val" style="color:#00e5a0;">—</div>
+          <div class="judge-score-label">/ 100</div>
+        </div>
+      </div>
+      <div>
+        <div class="judge-grade grade-a" id="judge-grade">—</div>
+        <div class="judge-headline" id="judge-headline" style="color:var(--text);opacity:0.7;">食事を記録して評価しましょう</div>
+      </div>
+    </div>
+
+    <!-- Item list -->
+    <div class="judge-items" id="judge-items">
+      <div class="judge-item" style="color:var(--text);opacity:0.5;font-size:12px;">今日の食事を記録するとAIが筋肉増大に適した食事かどうかを評価します。</div>
+    </div>
+
+    <!-- AI comment -->
+    <div class="judge-ai-comment" id="judge-ai-box" style="display:none;">
+      <div class="judge-ai-label">🤖 AI アドバイス</div>
+      <div id="judge-ai-text"></div>
+    </div>
+
+    <button class="judge-btn" id="judge-btn" onclick="runMuscleJudge()">🤖 AIで今日の食事を評価する</button>
+  </div>
+
+  <!-- Add Meal -->
+  <div class="card" id="sec-add-meal">
+    <div class="card-title">食事を追加</div>
+    <div class="meal-type-tabs">
+      <button class="tab active" onclick="selectTab(this,'朝食')">🌅 朝食</button>
+      <button class="tab" onclick="selectTab(this,'昼食')">☀️ 昼食</button>
+      <button class="tab" onclick="selectTab(this,'夕食')">🌙 夕食</button>
+      <button class="tab" onclick="selectTab(this,'間食')">🍎 間食</button>
+    </div>
+
+    <!-- Input mode tabs -->
+    <div class="input-mode-tabs">
+      <button class="imode-tab active" id="imode-text" onclick="switchInputMode('text')">🔍 食品名で検索</button>
+      <button class="imode-tab" id="imode-image" onclick="switchInputMode('image')">📷 写真から追加</button>
+    </div>
+
+    <!-- ── TEXT MODE ── -->
+    <div id="input-mode-text">
+    <!-- AI lookup row -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <div class="field-wrap" style="flex:2">
+        <div class="field-label">食品名</div>
+        <input type="text" id="food-name" placeholder="例：鶏むね肉" onkeydown="if(event.key==='Enter')lookupFood()">
+      </div>
+      <div class="field-wrap" style="flex:1">
+        <div class="field-label">グラム / mL</div>
+        <input type="number" id="food-grams" placeholder="200（不明なら0）" min="0" onkeydown="if(event.key==='Enter')lookupFood()">
+      </div>
+      <div class="field-wrap" style="justify-content:flex-end">
+        <div class="field-label">&nbsp;</div>
+        <button class="lookup-btn" onclick="lookupFood()" id="lookup-btn">🔍 調べる</button>
+      </div>
+    </div>
+
+    <!-- result preview -->
+    <div id="lookup-result" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;">AI が推定した栄養素</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+        <div class="preview-chip"><span class="chip-label">kcal</span><span class="chip-val" id="prev-kcal">—</span></div>
+        <div class="preview-chip"><span class="chip-label">タンパク質</span><span class="chip-val" id="prev-p">—</span></div>
+        <div class="preview-chip"><span class="chip-label">炭水化物</span><span class="chip-val" id="prev-c">—</span></div>
+        <div class="preview-chip"><span class="chip-label">脂質</span><span class="chip-val" id="prev-f">—</span></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:10px;" id="prev-note"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="add-btn" style="flex:1" onclick="confirmAdd()">✅ この内容で追加</button>
+        <button class="add-btn" style="flex:0 0 auto;background:var(--surface);border:1px solid var(--border);color:var(--text);" onclick="cancelLookup()">✕</button>
+      </div>
+    </div>
+
+    <!-- manual fallback (collapsed by default) -->
+    <details id="manual-section" style="margin-bottom:6px;">
+      <summary style="font-size:11px;color:var(--muted);cursor:pointer;padding:4px 0;list-style:none;display:flex;align-items:center;gap:4px;">
+        <span>▸</span> 手動で入力する
+      </summary>
+      <div class="input-grid" style="margin-top:8px;">
+        <div class="field-wrap name-field">
+          <div class="field-label">食品名（手動）</div>
+          <input type="text" id="food-name-manual" placeholder="例：プロテインバー">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">kcal</div>
+          <input type="number" id="food-kcal" placeholder="220" min="0">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">P (g)</div>
+          <input type="number" id="food-p" placeholder="44" min="0">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">C (g)</div>
+          <input type="number" id="food-c" placeholder="30" min="0">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">F (g)</div>
+          <input type="number" id="food-f" placeholder="5" min="0">
+        </div>
+      </div>
+      <button class="add-btn" style="margin-top:8px;" onclick="addFoodManual()">＋ 手動で追加</button>
+    </details>
+    </div><!-- /input-mode-text -->
+
+    <!-- ── IMAGE MODE ── -->
+    <div id="input-mode-image" style="display:none;">
+      <!-- Drop zone -->
+      <div class="img-drop-zone" id="img-drop-zone"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="handleImgDrop(event)">
+        <input type="file" accept="image/*" capture="environment" id="img-file-input" onchange="handleImgFile(this)">
+        <div style="font-size:28px;margin-bottom:6px;">📷</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;">写真をタップして選択</div>
+        <div style="font-size:11px;color:var(--text);opacity:0.5;">料理の写真・栄養成分表示ラベルに対応</div>
+      </div>
+
+      <!-- Preview -->
+      <div class="img-preview-wrap" id="img-preview-wrap">
+        <img id="img-preview" src="" alt="preview">
+        <button class="img-preview-clear" onclick="clearImgInput()">✕</button>
+      </div>
+
+      <!-- Analyze button -->
+      <button class="add-btn" id="img-analyze-btn" onclick="analyzeImage()" style="display:none;margin-bottom:10px;">
+        🤖 AIで栄養素を解析する
+      </button>
+
+      <!-- Results -->
+      <div id="img-result-area" style="display:none;">
+        <div style="font-size:11px;color:var(--text);opacity:0.6;margin-bottom:8px;letter-spacing:1px;">検出された食品（タップして選択）</div>
+        <div class="img-result-list" id="img-result-list"></div>
+        <div style="font-size:10px;color:var(--text);opacity:0.4;margin-bottom:10px;" id="img-result-note"></div>
+        <button class="add-btn" id="img-add-btn" onclick="confirmImgAdd()" style="display:none;">✅ 選択した食品を追加</button>
+      </div>
+    </div><!-- /input-mode-image -->
+
+  </div>
+
+  <!-- Eating Out Preset -->
+  <div class="card" id="eating-out-card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>🍻 外食プリセット</span>
+      <span style="font-size:10px;color:var(--muted);font-weight:400;letter-spacing:0;">条件を選んでカロリーを推定</span>
+    </div>
+
+    <div class="preset-step">
+      <div class="preset-step-label">① カテゴリー</div>
+      <div class="preset-chips" id="preset-category">
+        <button class="pchip" onclick="selectPreset('category',this,'居酒屋・飲み会')">🍺 居酒屋</button>
+        <button class="pchip" onclick="selectPreset('category',this,'ファストフード')">🍔 ファスト</button>
+        <button class="pchip" onclick="selectPreset('category',this,'ラーメン・麺類')">🍜 ラーメン</button>
+        <button class="pchip" onclick="selectPreset('category',this,'定食・和食')">🍱 定食</button>
+        <button class="pchip" onclick="selectPreset('category',this,'焼肉・BBQ')">🥩 焼肉</button>
+        <button class="pchip" onclick="selectPreset('category',this,'イタリアン・パスタ')">🍝 イタリアン</button>
+        <button class="pchip" onclick="selectPreset('category',this,'カフェ・スイーツ')">☕ カフェ</button>
+        <button class="pchip" onclick="selectPreset('category',this,'寿司・海鮮')">🍣 寿司</button>
+        <button class="pchip" onclick="selectPreset('category',this,'中華')">🥟 中華</button>
+        <button class="pchip" onclick="selectPreset('category',this,'ファミレス')">🍽 ファミレス</button>
+        <button class="pchip" onclick="selectPreset('category',this,'韓国料理')">🌶 韓国</button>
+      </div>
+    </div>
+
+    <div class="preset-step">
+      <div class="preset-step-label">② 飲み物（複数選択可・糖質少ない順）</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">🟢 太りにくい ──────────────────── 太りやすい 🔴</div>
+      <div class="preset-chips" id="preset-drink">
+        <button class="pchip drink-chip" data-drink="焼酎・ウイスキー" onclick="toggleDrink(this,'焼酎・ウイスキー')">🥃 焼酎/ウイスキー<br><span class="drink-sub">糖質0g</span></button>
+        <button class="pchip drink-chip" data-drink="ハイボール" onclick="toggleDrink(this,'ハイボール')">🥃 ハイボール<br><span class="drink-sub">糖質0g</span></button>
+        <button class="pchip drink-chip" data-drink="辛口ワイン" onclick="toggleDrink(this,'辛口ワイン')">🍷 辛口ワイン<br><span class="drink-sub">糖質2g/杯</span></button>
+        <button class="pchip drink-chip" data-drink="日本酒" onclick="toggleDrink(this,'日本酒')">🍶 日本酒<br><span class="drink-sub">糖質8g/杯</span></button>
+        <button class="pchip drink-chip" data-drink="ビール" onclick="toggleDrink(this,'ビール')">🍺 ビール<br><span class="drink-sub">糖質13g/杯</span></button>
+        <button class="pchip drink-chip" data-drink="チューハイ・サワー" onclick="toggleDrink(this,'チューハイ・サワー')">🍋 チューハイ<br><span class="drink-sub">糖質14g/杯</span></button>
+        <button class="pchip drink-chip" data-drink="梅酒・カクテル" onclick="toggleDrink(this,'梅酒・カクテル')">🍹 梅酒/カクテル<br><span class="drink-sub">糖質20g+/杯</span></button>
+        <button class="pchip drink-chip" data-drink="ソフトドリンク" onclick="toggleDrink(this,'ソフトドリンク')">🧃 ソフトドリンク<br><span class="drink-sub">糖質25g+/杯</span></button>
+        <button class="pchip drink-chip" data-drink="なし" onclick="toggleDrink(this,'なし')">🚫 飲まない<br><span class="drink-sub">0kcal</span></button>
+      </div>
+    </div>
+
+    <!-- Per-drink cup counters (dynamic) -->
+    <div class="preset-step" id="preset-cups-section" style="display:none;">
+      <div class="preset-step-label">③ 種類ごとの杯数</div>
+      <div id="drink-counters"></div>
+    </div>
+
+    <div class="preset-step">
+      <div class="preset-step-label" id="amount-step-label">③ 食べた量</div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <input type="range" id="amount-slider" min="30" max="200" step="10" value="100"
+          oninput="updateAmountLabel(this.value)"
+          style="flex:1;min-width:140px;accent-color:var(--accent);">
+        <div style="display:flex;flex-direction:column;align-items:center;min-width:52px;">
+          <span id="amount-pct" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--accent);line-height:1;">100</span>
+          <span style="font-size:10px;color:var(--muted);">%</span>
+        </div>
+        <span id="amount-desc" style="font-size:11px;color:var(--muted);">普通盛り</span>
+      </div>
+    </div>
+
+    <div class="preset-step">
+      <div class="preset-step-label" id="healthy-step-label">④ ヘルシー度（自己評価）</div>
+      <div class="preset-chips" id="preset-healthy">
+        <button class="pchip" onclick="selectPreset('healthy',this,'1')">💀 1<br><span style="font-size:9px;">超ジャンク</span></button>
+        <button class="pchip" onclick="selectPreset('healthy',this,'2')">🍟 2<br><span style="font-size:9px;">ジャンク寄り</span></button>
+        <button class="pchip pchip-active" onclick="selectPreset('healthy',this,'3')">😐 3<br><span style="font-size:9px;">普通</span></button>
+        <button class="pchip" onclick="selectPreset('healthy',this,'4')">🥗 4<br><span style="font-size:9px;">ヘルシー寄り</span></button>
+        <button class="pchip" onclick="selectPreset('healthy',this,'5')">💪 5<br><span style="font-size:9px;">超ヘルシー</span></button>
+      </div>
+    </div>
+
+    <button class="add-btn" onclick="estimateEatingOut()" id="estimate-btn" style="margin-top:4px;">🤖 AIでカロリーを推定する</button>
+
+    <div id="preset-result" style="display:none;margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;">AI 推定結果</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+        <div class="preview-chip"><span class="chip-label">kcal</span><span class="chip-val" id="pr-kcal">—</span></div>
+        <div class="preview-chip"><span class="chip-label">タンパク質</span><span class="chip-val" id="pr-p">—</span></div>
+        <div class="preview-chip"><span class="chip-label">炭水化物</span><span class="chip-val" id="pr-c">—</span></div>
+        <div class="preview-chip"><span class="chip-label">脂質</span><span class="chip-val" id="pr-f">—</span></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6;" id="pr-note"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="add-btn" style="flex:1" onclick="confirmPresetAdd()">✅ 記録に追加</button>
+        <button class="add-btn" style="flex:0 0 auto;background:var(--surface);border:1px solid var(--border);color:var(--text);" onclick="document.getElementById('preset-result').style.display='none'">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="log-section" id="log-section"></div>
+
+  <!-- Body Composition Card -->
+  <div class="body-card" id="sec-body">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="card-title" style="margin-bottom:0;">📊 体組成の記録</div>
+      <span class="tdee-auto-badge">消費カロリー自動更新</span>
+    </div>
+
+    <!-- Current stats display -->
+    <div class="body-grid" id="body-stats-display">
+      <div class="body-stat-wrap">
+        <div class="body-stat-val" id="bstat-weight">76.0</div>
+        <div class="body-stat-unit">kg</div>
+        <div class="body-stat-label">体重</div>
+        <div class="body-stat-delta" id="bdelta-weight"></div>
+      </div>
+      <div class="body-stat-wrap">
+        <div class="body-stat-val" id="bstat-fat">—</div>
+        <div class="body-stat-unit">%</div>
+        <div class="body-stat-label">体脂肪率</div>
+        <div class="body-stat-delta" id="bdelta-fat"></div>
+      </div>
+      <div class="body-stat-wrap">
+        <div class="body-stat-val" id="bstat-muscle">—</div>
+        <div class="body-stat-unit">kg</div>
+        <div class="body-stat-label">筋肉量</div>
+        <div class="body-stat-delta" id="bdelta-muscle"></div>
+      </div>
+      <div class="body-stat-wrap">
+        <div class="body-stat-val" id="bstat-age">32</div>
+        <div class="body-stat-unit">歳</div>
+        <div class="body-stat-label">年齢</div>
+        <div class="body-stat-delta"></div>
+      </div>
+    </div>
+
+    <!-- Activity level -->
+    <div style="font-size:11px;color:var(--text);opacity:0.75;margin-bottom:8px;font-weight:700;letter-spacing:1px;">活動レベル</div>
+    <div class="activity-tabs" id="activity-tabs">
+      <button class="atab" onclick="selectActivity(this,1.2)" data-factor="1.2">🛋 ほぼ座り仕事</button>
+      <button class="atab" onclick="selectActivity(this,1.375)" data-factor="1.375">🚶 軽い運動</button>
+      <button class="atab active" onclick="selectActivity(this,1.55)" data-factor="1.55">🏃 中程度の運動</button>
+      <button class="atab" onclick="selectActivity(this,1.725)" data-factor="1.725">🏋 ハードな運動</button>
+      <button class="atab" onclick="selectActivity(this,1.9)" data-factor="1.9">⚡ 超ハード</button>
+    </div>
+
+    <!-- Input form -->
+    <details id="body-input-details">
+      <summary style="font-size:12px;color:var(--accent);cursor:pointer;padding:6px 0;list-style:none;display:flex;align-items:center;gap:6px;font-weight:700;">
+        <span>＋ 新しい測定値を入力する</span>
+      </summary>
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div class="field-wrap">
+          <div class="field-label">体重 (kg)</div>
+          <input type="number" id="input-weight" placeholder="76.0" step="0.1" min="30">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">体脂肪率 (%)</div>
+          <input type="number" id="input-fat" placeholder="20.0" step="0.1" min="3" max="60">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">筋肉量 (kg) ※任意</div>
+          <input type="number" id="input-muscle" placeholder="自動計算" step="0.1" min="10">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">年齢</div>
+          <input type="number" id="input-age" placeholder="32" min="10" max="100">
+        </div>
+      </div>
+      <button class="add-btn" onclick="saveBodyData()">💾 記録して消費カロリーを更新</button>
+    </details>
+
+    <!-- History -->
+    <div style="margin-top:14px;">
+      <div class="history-header">
+        <div style="font-size:11px;color:var(--text);opacity:0.75;font-weight:700;letter-spacing:1px;">📅 記録履歴</div>
+      </div>
+      <div id="body-history-list"><div style="font-size:12px;color:var(--text);opacity:0.5;text-align:center;padding:10px 0;">まだ記録がありません</div></div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="card" id="sec-settings">
+    <div class="card-title">目標設定</div>
+    <div class="settings-grid">
+      <div class="field-wrap">
+        <div class="field-label">摂取目標カロリー (kcal)</div>
+        <input type="number" id="goal-kcal" value="2500" min="0">
+      </div>
+      <div class="field-wrap">
+        <div class="field-label">タンパク質目標 (g)</div>
+        <input type="number" id="goal-p" value="150" min="0">
+      </div>
+      <div class="field-wrap">
+        <div class="field-label">炭水化物目標 (g)</div>
+        <input type="number" id="goal-c" value="200" min="0">
+      </div>
+      <div class="field-wrap">
+        <div class="field-label">脂質目標 (g)</div>
+        <input type="number" id="goal-f" value="70" min="0">
+      </div>
+    </div>
+    <button class="save-btn" onclick="saveGoals()">目標を保存</button>
+  </div>
+
+</div></div>
+
+<!-- Calendar Page -->
+<div id="page-calendar" style="display:none;"></div>
+<div id="page-meallog" style="display:none;"></div>
+
+<!-- Edit Modal -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 0;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;width:calc(100% - 40px);max-width:440px;margin:20px auto;">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">✏️ 記録を編集</div>
+      <button onclick="closeEdit()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;">×</button>
+    </div>
+
+    <!-- Mode tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:16px;">
+      <button class="edit-tab edit-tab-active" id="edit-tab-ai" onclick="switchEditTab('ai')">🔍 AI で調べ直す</button>
+      <button class="edit-tab" id="edit-tab-manual" onclick="switchEditTab('manual')">✏️ 手動で修正</button>
+    </div>
+
+    <!-- AI re-lookup panel -->
+    <div id="edit-panel-ai">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <div class="field-wrap" style="flex:2">
+          <div class="field-label">食品名</div>
+          <input type="text" id="edit-ai-name" placeholder="例：鶏むね肉" onkeydown="if(event.key==='Enter')editLookup()">
+        </div>
+        <div class="field-wrap" style="flex:1">
+          <div class="field-label">グラム / mL</div>
+          <input type="number" id="edit-ai-grams" placeholder="200（不明なら0）" min="0" onkeydown="if(event.key==='Enter')editLookup()">
+        </div>
+      </div>
+      <button class="lookup-btn" style="width:100%;height:auto;padding:10px;" onclick="editLookup()" id="edit-lookup-btn">🔍 調べる</button>
+      <div id="edit-ai-result" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">AI が推定した栄養素</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <div class="preview-chip"><span class="chip-label">kcal</span><span class="chip-val" id="eai-kcal">—</span></div>
+          <div class="preview-chip"><span class="chip-label">P</span><span class="chip-val" id="eai-p">—</span></div>
+          <div class="preview-chip"><span class="chip-label">C</span><span class="chip-val" id="eai-c">—</span></div>
+          <div class="preview-chip"><span class="chip-label">F</span><span class="chip-val" id="eai-f">—</span></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px;" id="eai-note"></div>
+        <button class="add-btn" onclick="applyEditAI()">✅ この内容で保存</button>
+      </div>
+    </div>
+
+    <!-- Manual edit panel -->
+    <div id="edit-panel-manual" style="display:none;">
+      <div class="field-wrap" style="margin-bottom:10px;">
+        <div class="field-label">食品名</div>
+        <input type="text" id="edit-name">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div class="field-wrap">
+          <div class="field-label">kcal</div>
+          <input type="number" id="edit-kcal" min="0">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">P (g)</div>
+          <input type="number" id="edit-p" min="0">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">C (g)</div>
+          <input type="number" id="edit-c" min="0">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">F (g)</div>
+          <input type="number" id="edit-f" min="0">
+        </div>
+      </div>
+      <button class="add-btn" onclick="saveEdit()">💾 保存する</button>
+    </div>
+
+    <!-- Delete zone -->
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+      <div id="edit-delete-confirm" style="display:none;background:rgba(255,107,53,0.1);border:1px solid rgba(255,107,53,0.4);border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div style="font-size:13px;color:var(--accent2);margin-bottom:10px;">⚠️ この記録を削除しますか？</div>
+        <div style="display:flex;gap:8px;">
+          <button class="add-btn" style="background:var(--accent2);flex:1;" onclick="confirmDelete()">削除する</button>
+          <button class="add-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);flex:1;" onclick="hideDeleteConfirm()">キャンセル</button>
+        </div>
+      </div>
+      <button onclick="showDeleteConfirm()" style="width:100%;padding:9px;background:none;border:1px solid rgba(255,107,53,0.4);border-radius:8px;color:var(--accent2);font-family:'Noto Sans JP',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,107,53,0.1)'" onmouseout="this.style.background='none'">🗑 この記録を削除する</button>
+    </div>
+
+  </div>
+</div>
+
+<button class="back-to-top" id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="トップに戻る">↑</button>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Constants ──
+const MEAL_TYPES = ['朝食','昼食','夕食','間食'];
+let currentTab = '朝食';
+let currentDay = 0;
+
+// ── Body Composition & TDEE (dynamic) ──
+const DEFAULT_BODY = { weight: 76, fat: null, muscle: null, age: 32, activityFactor: 1.55, height: 174 };
+
+function getBodyProfile() {
+  try {
+    var p = JSON.parse(localStorage.getItem('bc_body_profile') || 'null') || Object.assign({}, DEFAULT_BODY);
+    // ensure required fields always present
+    if (!p.height)         p.height         = DEFAULT_BODY.height;
+    if (!p.activityFactor) p.activityFactor = DEFAULT_BODY.activityFactor;
+    if (!p.age)            p.age            = DEFAULT_BODY.age;
+    return p;
+  } catch(e) { return Object.assign({}, DEFAULT_BODY); }
+}
+function saveBodyProfile(p) { localStorage.setItem('bc_body_profile', JSON.stringify(p)); }
+
+function getBodyHistory() {
+  try { return JSON.parse(localStorage.getItem('bc_body_history') || '[]'); }
+  catch(e) { return []; }
+}
+function saveBodyHistory(h) { localStorage.setItem('bc_body_history', JSON.stringify(h)); }
+
+function calcBMR(p) {
+  // Mifflin-St Jeor (男性)
+  return 10 * p.weight + 6.25 * p.height - 5 * p.age + 5;
+}
+function calcTDEE(p) {
+  return Math.round(calcBMR(p) * p.activityFactor);
+}
+
+function getCurrentTDEE() {
+  return calcTDEE(getBodyProfile());
+}
+function getCurrentBMR() {
+  return Math.round(calcBMR(getBodyProfile()));
+}
+
+function selectActivity(el, factor) {
+  document.querySelectorAll('.atab').forEach(function(b){ b.classList.remove('active'); });
+  el.classList.add('active');
+  var p = getBodyProfile();
+  p.activityFactor = parseFloat(factor);
+  if (!p.height) p.height = 174;
+  saveBodyProfile(p);
+  var newTDEE = calcTDEE(p);
+  var tdeeEl = document.getElementById('bn-tdee');
+  if (tdeeEl) tdeeEl.textContent = newTDEE.toLocaleString();
+  renderBodyCard();
+  render();
+}
+
+function saveBodyData() {
+  var weight  = parseFloat(document.getElementById('input-weight').value);
+  var fat     = parseFloat(document.getElementById('input-fat').value);
+  var muscle  = parseFloat(document.getElementById('input-muscle').value);
+  var age     = parseFloat(document.getElementById('input-age').value);
+
+  if (!weight || isNaN(weight)) { showToast('体重は必須です'); return; }
+
+  // Always start from saved profile so height/activityFactor are preserved
+  var p = getBodyProfile();
+
+  // Update only fields that were entered
+  p.weight = weight;
+  if (!isNaN(fat)    && fat > 0)    p.fat    = fat;
+  if (!isNaN(muscle) && muscle > 0) p.muscle = muscle;
+  if (!isNaN(age)    && age > 0)    p.age    = age;
+
+  // Ensure height is always set
+  if (!p.height) p.height = 174;
+
+  // Auto-calc muscle from fat% if muscle not entered
+  if (!isNaN(fat) && fat > 0 && (isNaN(muscle) || muscle <= 0)) {
+    p.muscle = Math.round((weight * (1 - fat / 100)) * 10) / 10;
+  }
+
+  // Recalculate TDEE immediately
+  var newTDEE = calcTDEE(p);
+  var newBMR  = Math.round(calcBMR(p));
+
+  saveBodyProfile(p);
+
+  // Save to history
+  var history = getBodyHistory();
+  var today = new Date().toISOString().slice(0, 10);
+  history = history.filter(function(h) { return h.date !== today; });
+  history.unshift({
+    date: today,
+    weight: p.weight,
+    fat: (!isNaN(fat) && fat > 0) ? fat : null,
+    muscle: p.muscle,
+    age: p.age,
+    tdee: newTDEE,
+    bmr: newBMR
+  });
+  if (history.length > 30) history = history.slice(0, 30);
+  saveBodyHistory(history);
+
+  ['input-weight','input-fat','input-muscle','input-age'].forEach(function(id) {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('body-input-details').removeAttribute('open');
+
+  // Force-update TDEE display immediately before full render
+  var tdeeEl = document.getElementById('bn-tdee');
+  if (tdeeEl) tdeeEl.textContent = newTDEE.toLocaleString();
+
+  showToast('記録しました！消費カロリー: ' + newTDEE.toLocaleString() + ' kcal');
+  renderBodyCard();
+  render();
+}
+
+function deleteBodyHistory(date) {
+  var history = getBodyHistory();
+  history = history.filter(function(h){ return h.date !== date; });
+  saveBodyHistory(history);
+  // if deleted was most recent, revert profile to previous or default
+  if (history.length > 0) {
+    var latest = history[0];
+    var p = getBodyProfile();
+    p.weight = latest.weight;
+    if (latest.fat !== null) p.fat = latest.fat;
+    if (latest.muscle !== null) p.muscle = latest.muscle;
+    if (latest.age !== null) p.age = latest.age;
+    saveBodyProfile(p);
+  }
+  renderBodyCard();
+  render();
+  showToast('削除しました');
+}
+
+function renderBodyCard() {
+  var p = getBodyProfile();
+  var history = getBodyHistory();
+  var tdee = calcTDEE(p);
+  var bmr  = Math.round(calcBMR(p));
+  var act  = Math.round((p.activityFactor - 1) * bmr);
+
+  document.getElementById('bstat-weight').textContent = p.weight.toFixed(1);
+  document.getElementById('bstat-fat').textContent    = p.fat    !== null ? p.fat.toFixed(1) : '—';
+  document.getElementById('bstat-muscle').textContent = p.muscle !== null ? p.muscle.toFixed(1) : '—';
+  document.getElementById('bstat-age').textContent    = p.age;
+
+  // deltas vs previous entry
+  if (history.length >= 2) {
+    var curr = history[0], prev = history[1];
+    var dw = (curr.weight - prev.weight);
+    var wd = document.getElementById('bdelta-weight');
+    wd.textContent = (dw > 0 ? '▲ +' : '▼ ') + dw.toFixed(1) + ' kg';
+    wd.className = 'body-stat-delta ' + (dw <= 0 ? 'delta-down' : 'delta-up-good');
+    if (curr.fat !== null && prev.fat !== null) {
+      var df = (curr.fat - prev.fat);
+      var fd = document.getElementById('bdelta-fat');
+      fd.textContent = (df > 0 ? '▲ +' : '▼ ') + df.toFixed(1) + '%';
+      fd.className = 'body-stat-delta ' + (df <= 0 ? 'delta-down' : 'delta-up-good');
+    }
+    if (curr.muscle !== null && prev.muscle !== null) {
+      var dm = (curr.muscle - prev.muscle);
+      var md = document.getElementById('bdelta-muscle');
+      md.textContent = (dm >= 0 ? '▲ +' : '▼ ') + dm.toFixed(1) + ' kg';
+      md.className = 'body-stat-delta ' + (dm >= 0 ? 'delta-down' : 'delta-up-good');
+    }
+  }
+
+  // Activity tab highlight
+  document.querySelectorAll('.atab').forEach(function(btn) {
+    var f = parseFloat(btn.getAttribute('data-factor'));
+    btn.classList.toggle('active', Math.abs(f - p.activityFactor) < 0.01);
+  });
+
+  // Update TDEE chips
+  var bmrChip = document.getElementById('tdee-chip-bmr');
+  var actChip = document.getElementById('tdee-chip-act');
+  if (bmrChip) bmrChip.textContent = '🧬 基礎代謝 ' + bmr.toLocaleString() + ' kcal';
+  if (actChip) actChip.textContent = '🏃 活動消費 +' + act.toLocaleString() + ' kcal';
+
+  // History list
+  var listEl = document.getElementById('body-history-list');
+  if (!history.length) {
+    listEl.innerHTML = '<div style="font-size:12px;color:var(--text);opacity:0.5;text-align:center;padding:10px 0;">まだ記録がありません</div>';
+    return;
+  }
+  listEl.innerHTML = history.slice(0, 10).map(function(h) {
+    var vals = '体重 <span>' + h.weight.toFixed(1) + 'kg</span>';
+    if (h.fat   !== null) vals += '　脂肪率 <span>' + h.fat.toFixed(1) + '%</span>';
+    if (h.muscle !== null) vals += '　筋肉量 <span>' + h.muscle.toFixed(1) + 'kg</span>';
+    return '<div class="history-row">' +
+      '<span class="history-date">' + h.date.slice(5).replace('-','/') + '</span>' +
+      '<span class="history-vals">' + vals + '</span>' +
+      '<button class="history-del" onclick="deleteBodyHistory(\'' + h.date + '\')">✕</button>' +
+      '</div>';
+  }).join('');
+}
+
+function todayKey() {
+  const d = new Date(); d.setDate(d.getDate() + currentDay);
+  return d.toISOString().slice(0,10);
+}
+function formatDate(offset) {
+  const d = new Date(); d.setDate(d.getDate() + offset);
+  const labels = {'0':'今日','-1':'昨日','1':'明日'};
+  if (labels[String(offset)]) return labels[String(offset)] + ' ' + (d.getMonth()+1) + '/' + d.getDate();
+  return d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate();
+}
+function changeDay(delta) {
+  currentDay += delta;
+  document.getElementById('current-date').textContent = formatDate(currentDay);
+  render();
+}
+function getGoals() {
+  try { return JSON.parse(localStorage.getItem('bc_goals') || 'null') || {kcal:2500,p:150,c:200,f:70}; }
+  catch(e) { return {kcal:2500,p:150,c:200,f:70}; }
+}
+function getLogs() {
+  try { return JSON.parse(localStorage.getItem('bc_logs_' + todayKey()) || 'null') || {}; }
+  catch(e) { return {}; }
+}
+function saveLogs(logs) {
+  localStorage.setItem('bc_logs_' + todayKey(), JSON.stringify(logs));
+}
+
+function selectTab(el, name) {
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  currentTab = name;
+}
+
+// ── AI Food Lookup ──
+var pendingFood = null;
+
+async function lookupFood() {
+  var name = document.getElementById('food-name').value.trim();
+  var gramsRaw = parseFloat(document.getElementById('food-grams').value);
+  var gramsKnown = gramsRaw > 0;
+  if (!name) { showToast('食品名を入力してください'); return; }
+  var btn = document.getElementById('lookup-btn');
+  btn.disabled = true; btn.textContent = '⏳ 調べ中...';
+  document.getElementById('lookup-result').style.display = 'none';
+  var userMsg = gramsKnown
+    ? '食品名：' + name + '、重量：' + gramsRaw + 'g'
+    : '食品名：' + name + '（重量不明のため、一般的な1食分・1個分の標準量で計算してください）';
+  try {
+    var response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 300,
+        system: 'あなたは栄養データの専門家です。食品名（とグラム数）が与えられたら、その食品の栄養素を推定し、必ず以下のJSON形式のみで返してください。説明や前置きは一切不要です。\nグラム数が不明な場合は、その食品の一般的な1食分・1個分の標準的な重量を自分で判断して計算してください。\n{"kcal":数値,"protein_g":数値,"carb_g":数値,"fat_g":数値,"serving_desc":"使用した量の説明（例：1個約150g）","note":"出典や注意事項"}',
+        messages: [{ role: 'user', content: userMsg }]
+      })
+    });
+    var data = await response.json();
+    var text = data.content.filter(function(b){ return b.type==='text'; }).map(function(b){ return b.text; }).join('');
+    var json = JSON.parse(text.replace(/```json|```/g, '').trim());
+    var serving = json.serving_desc || (gramsKnown ? gramsRaw + 'g' : '1食分');
+    pendingFood = { name: name + '（' + serving + '）', kcal: Math.round(json.kcal), p: Math.round(json.protein_g), c: Math.round(json.carb_g), f: Math.round(json.fat_g) };
+    document.getElementById('prev-kcal').textContent = pendingFood.kcal + ' kcal';
+    document.getElementById('prev-p').textContent = pendingFood.p + ' g';
+    document.getElementById('prev-c').textContent = pendingFood.c + ' g';
+    document.getElementById('prev-f').textContent = pendingFood.f + ' g';
+    document.getElementById('prev-note').textContent = '📦 ' + serving + (json.note ? '　' + json.note : '');
+    document.getElementById('lookup-result').style.display = 'block';
+  } catch(e) { showToast('取得に失敗しました。手動入力をお試しください。'); }
+  finally { btn.disabled = false; btn.textContent = '🔍 調べる'; }
+}
+
+function confirmAdd() {
+  if (!pendingFood) return;
+  var logs = getLogs();
+  if (!logs[currentTab]) logs[currentTab] = [];
+  var entry = { id: String(Date.now()), name: pendingFood.name, kcal: pendingFood.kcal, p: pendingFood.p, c: pendingFood.c, f: pendingFood.f };
+  logs[currentTab].push(entry);
+  saveLogs(logs);
+  pendingFood = null;
+  document.getElementById('food-name').value = '';
+  document.getElementById('food-grams').value = '';
+  document.getElementById('lookup-result').style.display = 'none';
+  showToast('追加しました！');
+  render();
+}
+
+function cancelLookup() {
+  pendingFood = null;
+  document.getElementById('lookup-result').style.display = 'none';
+}
+
+function addFoodManual() {
+  var name = document.getElementById('food-name-manual').value.trim();
+  var kcal = parseFloat(document.getElementById('food-kcal').value) || 0;
+  var p = parseFloat(document.getElementById('food-p').value) || 0;
+  var c = parseFloat(document.getElementById('food-c').value) || 0;
+  var f = parseFloat(document.getElementById('food-f').value) || 0;
+  if (!name || kcal === 0) { showToast('食品名とkcalを入力してください'); return; }
+  var logs = getLogs();
+  if (!logs[currentTab]) logs[currentTab] = [];
+  logs[currentTab].push({ id: String(Date.now()), name: name, kcal: kcal, p: p, c: c, f: f });
+  saveLogs(logs);
+  ['food-name-manual','food-kcal','food-p','food-c','food-f'].forEach(function(id){ document.getElementById(id).value = ''; });
+  showToast('追加しました！');
+  render();
+}
+
+// ── Edit & Delete ──
+var editState = { type: null, id: null };
+var editAIPending = null;
+
+function openEdit(type, id) {
+  var logs = getLogs();
+  var item = (logs[type] || []).find(function(i){ return String(i.id) === String(id); });
+  if (!item) { showToast('記録が見つかりません'); return; }
+  editState = { type: type, id: String(id) };
+  editAIPending = null;
+  document.getElementById('edit-ai-name').value = item.name;
+  document.getElementById('edit-ai-grams').value = '';
+  document.getElementById('edit-ai-result').style.display = 'none';
+  document.getElementById('edit-name').value = item.name;
+  document.getElementById('edit-kcal').value = item.kcal;
+  document.getElementById('edit-p').value = item.p;
+  document.getElementById('edit-c').value = item.c;
+  document.getElementById('edit-f').value = item.f;
+  document.getElementById('edit-delete-confirm').style.display = 'none';
+  switchEditTab('ai');
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function closeEdit() {
+  document.getElementById('edit-modal').style.display = 'none';
+  editState = { type: null, id: null };
+  editAIPending = null;
+}
+
+function switchEditTab(tab) {
+  document.getElementById('edit-panel-ai').style.display = tab === 'ai' ? 'block' : 'none';
+  document.getElementById('edit-panel-manual').style.display = tab === 'manual' ? 'block' : 'none';
+  document.getElementById('edit-tab-ai').className = 'edit-tab' + (tab === 'ai' ? ' edit-tab-active' : '');
+  document.getElementById('edit-tab-manual').className = 'edit-tab' + (tab === 'manual' ? ' edit-tab-active' : '');
+}
+
+async function editLookup() {
+  var name = document.getElementById('edit-ai-name').value.trim();
+  var gramsRaw = parseFloat(document.getElementById('edit-ai-grams').value);
+  var gramsKnown = gramsRaw > 0;
+  if (!name) { showToast('食品名を入力してください'); return; }
+  var btn = document.getElementById('edit-lookup-btn');
+  btn.disabled = true; btn.textContent = '⏳ 調べ中...';
+  document.getElementById('edit-ai-result').style.display = 'none';
+  var userMsg = gramsKnown
+    ? '食品名：' + name + '、重量：' + gramsRaw + 'g'
+    : '食品名：' + name + '（重量不明のため、一般的な1食分・1個分の標準量で計算してください）';
+  try {
+    var response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 300,
+        system: 'あなたは栄養データの専門家です。食品名（とグラム数）が与えられたら、その食品の栄養素を推定し、必ず以下のJSON形式のみで返してください。説明や前置きは一切不要です。\nグラム数が不明な場合は、その食品の一般的な1食分・1個分の標準的な重量を自分で判断して計算してください。\n{"kcal":数値,"protein_g":数値,"carb_g":数値,"fat_g":数値,"serving_desc":"使用した量の説明","note":"注意事項"}',
+        messages: [{ role: 'user', content: userMsg }]
+      })
+    });
+    var data = await response.json();
+    var text = data.content.filter(function(b){ return b.type==='text'; }).map(function(b){ return b.text; }).join('');
+    var json = JSON.parse(text.replace(/```json|```/g, '').trim());
+    var serving = json.serving_desc || (gramsKnown ? gramsRaw + 'g' : '1食分');
+    editAIPending = { name: name + '（' + serving + '）', kcal: Math.round(json.kcal), p: Math.round(json.protein_g), c: Math.round(json.carb_g), f: Math.round(json.fat_g) };
+    document.getElementById('eai-kcal').textContent = editAIPending.kcal + ' kcal';
+    document.getElementById('eai-p').textContent = editAIPending.p + ' g';
+    document.getElementById('eai-c').textContent = editAIPending.c + ' g';
+    document.getElementById('eai-f').textContent = editAIPending.f + ' g';
+    document.getElementById('eai-note').textContent = '📦 ' + serving + (json.note ? '　' + json.note : '');
+    document.getElementById('edit-ai-result').style.display = 'block';
+  } catch(e) { showToast('取得に失敗しました'); }
+  finally { btn.disabled = false; btn.textContent = '🔍 調べる'; }
+}
+
+function applyEditAI() {
+  if (!editAIPending) return;
+  var logs = getLogs();
+  var idx = (logs[editState.type] || []).findIndex(function(i){ return String(i.id) === editState.id; });
+  if (idx === -1) { showToast('記録が見つかりません'); return; }
+  logs[editState.type][idx] = { id: editState.id, name: editAIPending.name, kcal: editAIPending.kcal, p: editAIPending.p, c: editAIPending.c, f: editAIPending.f };
+  saveLogs(logs);
+  closeEdit();
+  showToast('修正しました！');
+  render();
+}
+
+function saveEdit() {
+  if (!editState.type || !editState.id) return;
+  var logs = getLogs();
+  var idx = (logs[editState.type] || []).findIndex(function(i){ return String(i.id) === editState.id; });
+  if (idx === -1) { showToast('記録が見つかりません'); return; }
+  var orig = logs[editState.type][idx];
+  logs[editState.type][idx] = {
+    id: editState.id,
+    name: document.getElementById('edit-name').value.trim() || orig.name,
+    kcal: parseFloat(document.getElementById('edit-kcal').value) || 0,
+    p: parseFloat(document.getElementById('edit-p').value) || 0,
+    c: parseFloat(document.getElementById('edit-c').value) || 0,
+    f: parseFloat(document.getElementById('edit-f').value) || 0,
+  };
+  saveLogs(logs);
+  closeEdit();
+  showToast('修正しました！');
+  render();
+}
+
+function showDeleteConfirm() {
+  document.getElementById('edit-delete-confirm').style.display = 'block';
+}
+function hideDeleteConfirm() {
+  document.getElementById('edit-delete-confirm').style.display = 'none';
+}
+
+function confirmDelete() {
+  if (!editState.type || !editState.id) return;
+  var logs = getLogs();
+  logs[editState.type] = (logs[editState.type] || []).filter(function(item){ return String(item.id) !== editState.id; });
+  saveLogs(logs);
+  closeEdit();
+  showToast('削除しました');
+  render();
+}
+
+// ── Eating Out Preset ──
+var presetState = { category: null, healthy: '3' };
+var selectedDrinks = {};
+var pendingPreset = null;
+
+function selectPreset(key, el, val) {
+  presetState[key] = val;
+  var container = el.closest('.preset-chips');
+  container.querySelectorAll('.pchip').forEach(function(b){ b.classList.remove('pchip-active'); });
+  el.classList.add('pchip-active');
+}
+
+function toggleDrink(el, name) {
+  if (name === 'なし') {
+    Object.keys(selectedDrinks).forEach(function(k){ delete selectedDrinks[k]; });
+    document.querySelectorAll('.drink-chip').forEach(function(b){ b.classList.remove('pchip-active'); });
+    el.classList.add('pchip-active');
+    selectedDrinks['なし'] = 0;
+  } else {
+    var noneBtn = document.querySelector('[data-drink="なし"]');
+    if (noneBtn) noneBtn.classList.remove('pchip-active');
+    delete selectedDrinks['なし'];
+    if (selectedDrinks[name] !== undefined) {
+      delete selectedDrinks[name];
+      el.classList.remove('pchip-active');
+    } else {
+      selectedDrinks[name] = 2;
+      el.classList.add('pchip-active');
+    }
+  }
+  renderDrinkCounters();
+  updateStepLabels();
+}
+
+function renderDrinkCounters() {
+  var container = document.getElementById('drink-counters');
+  var section = document.getElementById('preset-cups-section');
+  var drinks = Object.keys(selectedDrinks).filter(function(k){ return k !== 'なし'; });
+  if (!drinks.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  container.innerHTML = drinks.map(function(name) {
+    var safeId = 'dcup_' + name.replace(/[^a-zA-Z0-9]/g,'_');
+    return '<div class="drink-counter-row">' +
+      '<span class="drink-counter-name">' + name + '</span>' +
+      '<div class="drink-counter-controls">' +
+      '<button class="counter-btn" onclick="changeDrinkCups(\'' + name + '\',-1)">−</button>' +
+      '<span class="dcup-val" id="' + safeId + '">' + selectedDrinks[name] + '</span>' +
+      '<button class="counter-btn" onclick="changeDrinkCups(\'' + name + '\',1)">＋</button>' +
+      '<span style="font-size:11px;color:var(--muted);">杯</span>' +
+      '</div></div>';
+  }).join('');
+}
+
+function changeDrinkCups(name, delta) {
+  selectedDrinks[name] = Math.max(1, Math.min(15, (selectedDrinks[name] || 1) + delta));
+  var safeId = 'dcup_' + name.replace(/[^a-zA-Z0-9]/g,'_');
+  var el = document.getElementById(safeId);
+  if (el) el.textContent = selectedDrinks[name];
+}
+
+function updateStepLabels() {
+  var hasDrink = Object.keys(selectedDrinks).some(function(k){ return k !== 'なし'; });
+  document.getElementById('amount-step-label').textContent = hasDrink ? '④ 食べた量' : '③ 食べた量';
+  document.getElementById('healthy-step-label').textContent = hasDrink ? '⑤ ヘルシー度（自己評価）' : '④ ヘルシー度（自己評価）';
+}
+
+function updateAmountLabel(val) {
+  document.getElementById('amount-pct').textContent = val;
+  var descs = { 30:'ほぼ食べてない', 50:'かなり少なめ', 60:'少なめ', 70:'やや少なめ', 80:'やや少なめ', 90:'やや少なめ', 100:'普通盛り', 110:'やや多め', 120:'多め', 130:'多め', 140:'かなり多め', 150:'大盛り', 170:'超大盛り', 200:'2人前' };
+  document.getElementById('amount-desc').textContent = descs[String(val)] || val + '%';
+}
+
+async function estimateEatingOut() {
+  if (!presetState.category) { showToast('カテゴリーを選んでください'); return; }
+  if (Object.keys(selectedDrinks).length === 0) { showToast('飲み物を選んでください'); return; }
+  var btn = document.getElementById('estimate-btn');
+  btn.disabled = true; btn.textContent = '⏳ 推定中...';
+  document.getElementById('preset-result').style.display = 'none';
+  var amountPct = parseInt(document.getElementById('amount-slider').value);
+  var drinkInfo;
+  if (selectedDrinks['なし'] !== undefined) {
+    drinkInfo = '飲み物：ソフトドリンクのみ（アルコールなし）';
+  } else {
+    drinkInfo = '飲み物：' + Object.entries(selectedDrinks).map(function(e){ return e[0] + 'を' + e[1] + '杯'; }).join('、');
+  }
+  var prompt = '外食の栄養素を推定してください。\nカテゴリー：' + presetState.category + '\n' + drinkInfo + '\n食べた量：標準の' + amountPct + '%程度\nヘルシー度（自己評価5段階）：' + presetState.healthy + '（1=超ジャンク、5=超ヘルシー）';
+  try {
+    var response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 400,
+        system: 'あなたは外食の栄養推定の専門家です。与えられた条件から合計カロリーとPFCを推定し、必ず以下のJSON形式のみで返してください。説明や前置きは不要です。\n{"kcal":数値,"protein_g":数値,"carb_g":数値,"fat_g":数値,"summary":"推定の根拠を1〜2文で","label":"記録用の短いラベル"}',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    var data = await response.json();
+    var text = data.content.filter(function(b){ return b.type==='text'; }).map(function(b){ return b.text; }).join('');
+    var json = JSON.parse(text.replace(/```json|```/g, '').trim());
+    pendingPreset = { name: json.label || '外食（' + presetState.category + '）', kcal: Math.round(json.kcal), p: Math.round(json.protein_g), c: Math.round(json.carb_g), f: Math.round(json.fat_g) };
+    document.getElementById('pr-kcal').textContent = pendingPreset.kcal + ' kcal';
+    document.getElementById('pr-p').textContent = pendingPreset.p + ' g';
+    document.getElementById('pr-c').textContent = pendingPreset.c + ' g';
+    document.getElementById('pr-f').textContent = pendingPreset.f + ' g';
+    document.getElementById('pr-note').textContent = json.summary || '';
+    document.getElementById('preset-result').style.display = 'block';
+  } catch(e) { showToast('推定に失敗しました。もう一度お試しください。'); }
+  finally { btn.disabled = false; btn.textContent = '🤖 AIでカロリーを推定する'; }
+}
+
+function confirmPresetAdd() {
+  if (!pendingPreset) return;
+  var logs = getLogs();
+  if (!logs[currentTab]) logs[currentTab] = [];
+  logs[currentTab].push({ id: String(Date.now()), name: pendingPreset.name, kcal: pendingPreset.kcal, p: pendingPreset.p, c: pendingPreset.c, f: pendingPreset.f });
+  saveLogs(logs);
+  pendingPreset = null;
+  document.getElementById('preset-result').style.display = 'none';
+  showToast('外食を記録しました！');
+  render();
+}
+
+// ── Render ──
+function render() {
+  var goals = getGoals();
+  var logs = getLogs();
+  var totalKcal=0, totalP=0, totalC=0, totalF=0;
+  MEAL_TYPES.forEach(function(t){
+    (logs[t]||[]).forEach(function(item){
+      totalKcal += item.kcal; totalP += item.p; totalC += item.c; totalF += item.f;
+    });
+  });
+
+  // Energy Balance
+  var TDEE = getCurrentTDEE();
+  var diff = totalKcal - TDEE;
+  var maxRange = 1000;
+  var pct = Math.max(-1, Math.min(1, diff / maxRange));
+  document.getElementById('bn-tdee').textContent = TDEE.toLocaleString();
+  document.getElementById('bn-intake').textContent = Math.round(totalKcal).toLocaleString();
+  var diffEl = document.getElementById('bn-diff');
+  var diffLabel = document.getElementById('bn-diff-label');
+  var statusEl = document.getElementById('balance-status');
+  var fillEl = document.getElementById('balance-fill');
+  var absDiff = Math.abs(Math.round(diff));
+  if (totalKcal === 0) {
+    diffEl.textContent = '−' + TDEE.toLocaleString();
+    diffEl.className = 'bn-val bn-diff-neg';
+    diffLabel.textContent = 'kcal 赤字';
+    statusEl.textContent = 'まだ食事の記録がありません';
+    statusEl.className = 'balance-status status-neutral';
+    fillEl.style.cssText = 'left:0;width:0;background:var(--minus)';
+  } else if (diff < 0) {
+    diffEl.textContent = '−' + absDiff.toLocaleString();
+    diffEl.className = 'bn-val bn-diff-neg';
+    diffLabel.textContent = 'kcal 赤字';
+    var w = Math.min(50, Math.abs(pct) * 50);
+    fillEl.style.cssText = 'right:50%;left:auto;width:' + w + '%;background:var(--minus);border-radius:8px 0 0 8px;';
+    statusEl.textContent = absDiff > 800 ? '🔥 大きな赤字！脂肪燃焼が加速中' : absDiff > 300 ? '✅ 良好な赤字範囲。筋肉を守りながら減脂！' : '⚡ 軽い赤字。もう少し絞れるかも';
+    statusEl.className = 'balance-status status-deficit';
+  } else {
+    diffEl.textContent = '+' + absDiff.toLocaleString();
+    diffEl.className = 'bn-val bn-diff-pos';
+    diffLabel.textContent = 'kcal 黒字';
+    var w2 = Math.min(50, pct * 50);
+    fillEl.style.cssText = 'left:50%;right:auto;width:' + w2 + '%;background:var(--plus);border-radius:0 8px 8px 0;';
+    statusEl.textContent = absDiff > 500 ? '⚠️ 黒字過多。体脂肪が増えやすい状態です' : '💪 小さな黒字。筋肉増加に有利！';
+    statusEl.className = 'balance-status status-surplus';
+  }
+
+  // ── Surplus warning: tint whole UI red ──
+  if (totalKcal > 0 && diff > 0) {
+    document.body.classList.add('surplus-warning');
+    var bannerAmt = document.getElementById('surplus-banner-amount');
+    if (bannerAmt) bannerAmt.textContent = '+' + absDiff.toLocaleString() + ' kcal 消費カロリーを超えています';
+  } else {
+    document.body.classList.remove('surplus-warning');
+  }
+
+  document.getElementById('tdee-chip-goal').textContent = '🎯 目標 ' + goals.kcal.toLocaleString() + ' kcal';
+
+  // Ring
+  var circ = 339.3;
+  var ringPct = Math.min(totalKcal / goals.kcal, 1);
+  document.getElementById('ring-progress').style.strokeDashoffset = circ * (1 - ringPct);
+  document.getElementById('ring-progress').style.stroke = totalKcal > goals.kcal ? 'var(--accent2)' : 'var(--accent)';
+  document.getElementById('ring-kcal').textContent = Math.round(totalKcal);
+  var rem = goals.kcal - totalKcal;
+  document.getElementById('ring-remain').textContent = rem >= 0 ? '目標まで ' + Math.round(rem) + ' kcal' : '目標 +' + Math.round(-rem) + ' kcal';
+
+  // Macros
+  document.getElementById('p-val').textContent = Math.round(totalP) + ' / ' + goals.p + 'g';
+  document.getElementById('c-val').textContent = Math.round(totalC) + ' / ' + goals.c + 'g';
+  document.getElementById('f-val').textContent = Math.round(totalF) + ' / ' + goals.f + 'g';
+  document.getElementById('p-bar').style.width = Math.min(totalP/goals.p*100,100) + '%';
+  document.getElementById('c-bar').style.width = Math.min(totalC/goals.c*100,100) + '%';
+  document.getElementById('f-bar').style.width = Math.min(totalF/goals.f*100,100) + '%';
+
+  // Goal inputs
+  document.getElementById('goal-kcal').value = goals.kcal;
+  document.getElementById('goal-p').value = goals.p;
+  document.getElementById('goal-c').value = goals.c;
+  document.getElementById('goal-f').value = goals.f;
+
+  // Log
+  var logEl = document.getElementById('log-section');
+  var html = ''; var hasAny = false;
+  MEAL_TYPES.forEach(function(type) {
+    var items = logs[type] || [];
+    if (!items.length) return;
+    hasAny = true;
+    var gk = items.reduce(function(s,i){ return s + i.kcal; }, 0);
+    html += '<div class="log-group"><div class="log-group-header"><span>' + type + '</span><span class="log-group-kcal">' + Math.round(gk) + ' kcal</span></div>';
+    items.forEach(function(item) {
+      html += '<div class="log-item">' +
+        '<div style="flex:1;min-width:0;">' +
+        '<div class="log-name">' + item.name + '</div>' +
+        '<div class="log-macros">P ' + item.p + 'g · C ' + item.c + 'g · F ' + item.f + 'g</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">' +
+        '<span class="log-kcal">' + item.kcal + '</span>' +
+        '<button class="log-edit" onclick="openEdit(\'' + type + '\',\'' + item.id + '\')" title="編集・削除">✏️</button>' +
+        '</div></div>';
+    });
+    html += '</div>';
+  });
+  if (!hasAny) html = '<div class="empty-state">まだ食事の記録がありません</div>';
+  logEl.innerHTML = html;
+}
+
+function saveGoals() {
+  var goals = {
+    kcal: parseFloat(document.getElementById('goal-kcal').value) || 2500,
+    p: parseFloat(document.getElementById('goal-p').value) || 150,
+    c: parseFloat(document.getElementById('goal-c').value) || 200,
+    f: parseFloat(document.getElementById('goal-f').value) || 70,
+  };
+  localStorage.setItem('bc_goals', JSON.stringify(goals));
+  showToast('目標を保存しました！');
+  render();
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+
+// Modal backdrop close
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEdit();
+});
+
+// ── Muscle Judge ──
+var lastJudgeKey = null;
+
+async function runMuscleJudge() {
+  var logs = getLogs();
+  var goals = getGoals();
+  var profile = getBodyProfile();
+
+  // Build food summary
+  var allItems = [];
+  MEAL_TYPES.forEach(function(t) { (logs[t] || []).forEach(function(i) { allItems.push(i); }); });
+
+  if (!allItems.length) { showToast('食事を記録してから評価してください'); return; }
+
+  var totalKcal = allItems.reduce(function(s,i){ return s+i.kcal; }, 0);
+  var totalP    = allItems.reduce(function(s,i){ return s+i.p; }, 0);
+  var totalC    = allItems.reduce(function(s,i){ return s+i.c; }, 0);
+  var totalF    = allItems.reduce(function(s,i){ return s+i.f; }, 0);
+  var tdee      = getCurrentTDEE();
+  var diff      = totalKcal - tdee;
+
+  var foodList = allItems.map(function(i){ return i.name + '(' + i.kcal + 'kcal, P' + i.p + 'g)'; }).join('、');
+
+  var promptLines = [
+    'プロフィール: 体重' + profile.weight + 'kg / 体脂肪率' + (profile.fat || '不明') + '% / 年齢' + profile.age + '歳',
+    '今日の摂取: カロリー' + Math.round(totalKcal) + 'kcal / P' + Math.round(totalP) + 'g / C' + Math.round(totalC) + 'g / F' + Math.round(totalF) + 'g',
+    '消費カロリー: ' + tdee + 'kcal / 収支: ' + (diff >= 0 ? '+' : '') + Math.round(diff) + 'kcal',
+    '目標タンパク質: ' + goals.p + 'g',
+    '食事内容: ' + foodList,
+    'JSONのみで返答: {"score":0-100,"grade":"S/A/B/C/D","headline":"10文字以内","items":[{"type":"ok|warn|bad","text":"30文字以内"}],"advice":"100文字以内"}'
+  ];
+  var prompt = promptLines.join(' | ');
+
+  var btn = document.getElementById('judge-btn');
+  btn.disabled = true; btn.textContent = '⏳ 評価中...';
+
+  try {
+    var response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 600,
+        system: 'あなたはスポーツ栄養の専門家です。筋肉増大に適した食事かどうかを科学的根拠に基づいて評価します。必ずJSONのみで返答してください。',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    var data = await response.json();
+    var text = data.content.filter(function(b){ return b.type==='text'; }).map(function(b){ return b.text; }).join('');
+    var json = JSON.parse(text.replace(/```json|```/g,'').trim());
+
+    renderJudgeResult(json);
+    lastJudgeKey = todayKey();
+
+    // Cache result
+    localStorage.setItem('bc_judge_' + todayKey(), JSON.stringify(json));
+
+    var now = new Date();
+    document.getElementById('judge-updated-at').textContent = (now.getHours()) + ':' + String(now.getMinutes()).padStart(2,'0') + ' 更新';
+  } catch(e) {
+    showToast('評価に失敗しました。もう一度お試しください。');
+  } finally {
+    btn.disabled = false; btn.textContent = '🔄 再評価する';
+  }
+}
+
+function renderJudgeResult(json) {
+  var score = json.score || 0;
+  var grade = json.grade || 'C';
+  var gradeColors = { S: '#ffd700', A: '#00e5a0', B: '#74c7ff', C: '#ffd166', D: '#ff6b35' };
+  var color = gradeColors[grade] || '#ffd166';
+
+  // Ring
+  var circ = 201.1;
+  var arc = document.getElementById('judge-ring-arc');
+  arc.style.strokeDashoffset = circ * (1 - score / 100);
+  arc.style.stroke = color;
+
+  // Score & grade
+  var scoreEl = document.getElementById('judge-score-val');
+  scoreEl.textContent = score;
+  scoreEl.style.color = color;
+
+  var gradeEl = document.getElementById('judge-grade');
+  gradeEl.textContent = grade;
+  gradeEl.style.color = color;
+
+  document.getElementById('judge-headline').textContent = json.headline || '';
+  document.getElementById('judge-headline').style.color = color;
+
+  // Items
+  var typeMap = { ok: 'judge-item-ok', warn: 'judge-item-warn', bad: 'judge-item-bad' };
+  var iconMap = { ok: '✅', warn: '⚠️', bad: '❌' };
+  var itemsEl = document.getElementById('judge-items');
+  itemsEl.innerHTML = (json.items || []).map(function(item) {
+    var cls = typeMap[item.type] || 'judge-item-warn';
+    var icon = iconMap[item.type] || '⚠️';
+    return '<div class="judge-item ' + cls + '"><span class="judge-item-icon">' + icon + '</span><span>' + item.text + '</span></div>';
+  }).join('');
+
+  // AI advice
+  if (json.advice) {
+    document.getElementById('judge-ai-text').textContent = json.advice;
+    document.getElementById('judge-ai-box').style.display = 'block';
+  }
+}
+
+function loadCachedJudge() {
+  try {
+    var cached = localStorage.getItem('bc_judge_' + todayKey());
+    if (cached) {
+      var json = JSON.parse(cached);
+      renderJudgeResult(json);
+      document.getElementById('judge-btn').textContent = '🔄 再評価する';
+      document.getElementById('judge-updated-at').textContent = 'キャッシュ';
+    }
+  } catch(e) {}
+}
+
+// ── Page tab switching ──
+function jumpTo(id) {
+  // Switch to record tab if needed
+  if (document.getElementById('page-record').style.display === 'none') {
+    switchPage('record');
+  }
+  setTimeout(function() {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var top = el.getBoundingClientRect().top + window.scrollY - 16;
+    window.scrollTo({ top: top, behavior: 'smooth' });
+  }, 50);
+}
+
+function switchPage(page) {
+  var pages = ['record','meallog','calendar'];
+  pages.forEach(function(p) {
+    var el = document.getElementById('page-' + p);
+    if (el) el.style.display = (p === page) ? '' : 'none';
+    var tab = document.getElementById('tab-' + p);
+    if (tab) tab.className = 'page-tab' + (p === page ? ' page-tab-active' : '');
+  });
+  document.getElementById('date-nav-wrap').style.display = (page === 'record') ? '' : 'none';
+  var jb = document.getElementById('jump-bar-wrap');
+  if (jb) jb.style.display = (page === 'record') ? '' : 'none';
+  if (page === 'calendar') renderCalendarPage();
+  if (page === 'meallog') renderMealLog();
+}
+
+// ── Calendar ──
+var calYear, calMonth, calSelectedCell = null;
+
+function calDayData(y, m, d) {
+  var key = y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+  var logs = getLogs();
+  // read from that specific day's storage
+  var dayLogs;
+  try { dayLogs = JSON.parse(localStorage.getItem('bc_logs_' + key) || 'null') || {}; }
+  catch(e) { dayLogs = {}; }
+  var items = [];
+  MEAL_TYPES.forEach(function(t){ (dayLogs[t]||[]).forEach(function(i){ items.push(Object.assign({meal:t},i)); }); });
+  if (!items.length) return null;
+  var kcal = items.reduce(function(s,i){ return s+i.kcal; },0);
+  var p    = items.reduce(function(s,i){ return s+i.p;    },0);
+  var c    = items.reduce(function(s,i){ return s+i.c;    },0);
+  var f    = items.reduce(function(s,i){ return s+i.f;    },0);
+  var prof = getBodyProfile();
+  var tdee = calcTDEE(prof);
+  var judge = null;
+  try { judge = JSON.parse(localStorage.getItem('bc_judge_' + key) || 'null'); } catch(e){}
+  return { key:key, kcal:Math.round(kcal), p:Math.round(p), c:Math.round(c), f:Math.round(f),
+           tdee:tdee, diff:Math.round(kcal-tdee), dayLogs:dayLogs, items:items, judge:judge };
+}
+
+function renderCalendarPage() {
+  var now = new Date();
+  if (!calYear)  { calYear  = now.getFullYear(); }
+  if (!calMonth) { calMonth = now.getMonth()+1;  }
+
+  document.getElementById('page-calendar').innerHTML =
+    '<div class="cal-page">' +
+    '<div class="cal-month-nav">' +
+    '<button class="cal-month-btn" onclick="calChangeMonth(-1)">‹</button>' +
+    '<div class="cal-month-label" id="cal-month-label"></div>' +
+    '<button class="cal-month-btn" onclick="calChangeMonth(1)">›</button>' +
+    '</div>' +
+    '<div class="cal-summary">' +
+    '<div class="cal-sum-chip"><div class="cal-sum-val" id="csum-days" style="color:var(--accent)">0</div><div class="cal-sum-label">記録日数</div></div>' +
+    '<div class="cal-sum-chip"><div class="cal-sum-val" id="csum-deficit" style="color:var(--accent)">0</div><div class="cal-sum-label">赤字の日</div></div>' +
+    '<div class="cal-sum-chip"><div class="cal-sum-val" id="csum-surplus" style="color:var(--accent2)">0</div><div class="cal-sum-label">黒字の日</div></div>' +
+    '<div class="cal-sum-chip"><div class="cal-sum-val" id="csum-avg" style="color:var(--text)">—</div><div class="cal-sum-label">平均収支</div></div>' +
+    '</div>' +
+    '<div class="cal-dow-row">' +
+    ['日','月','火','水','木','金','土'].map(function(d){ return '<div class="cal-dow">'+d+'</div>'; }).join('') +
+    '</div>' +
+    '<div class="cal-grid" id="cal-grid"></div>' +
+    '<div class="chart-card">' +
+    '<div class="chart-title-row">' +
+    '<div class="chart-title">収支推移 / 平均収支</div>' +
+    '<div class="chart-legend">' +
+    '<span><span class="chart-legend-dot" style="background:#00e5a0"></span>赤字（収支−）</span>' +
+    '<span><span class="chart-legend-dot" style="background:#ff6b35"></span>黒字（収支+）</span>' +
+    '<span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:16px;height:0;border-top:2px dashed #a8b0cc;opacity:0.7"></span>平均収支</span>' +
+    '</div></div>' +
+    '<div class="chart-wrap"><div id="cal-chart-inner"></div></div>' +
+    '</div>' +
+    '<div class="body-chart-card">' +
+    '<div class="chart-title-row" style="margin-bottom:10px;">' +
+    '<div class="chart-title">体組成の推移</div>' +
+    '</div>' +
+    '<div class="body-chart-filter" id="body-chart-filter">' +
+    '<button class="bcf-btn on" data-metric="weight" onclick="toggleBodyMetric(this,\'weight\')">⚖️ 体重</button>' +
+    '<button class="bcf-btn on" data-metric="fat" onclick="toggleBodyMetric(this,\'fat\')">🔥 体脂肪率</button>' +
+    '<button class="bcf-btn on" data-metric="muscle" onclick="toggleBodyMetric(this,\'muscle\')">💪 筋肉量</button>' +
+    '<button class="bcf-btn on" data-metric="tdee" onclick="toggleBodyMetric(this,\'tdee\')">⚡ 消費kcal</button>' +
+    '</div>' +
+    '<div class="chart-wrap"><div id="body-chart-inner"></div></div>' +
+    '</div>' +
+    '<div class="cal-detail" id="cal-detail">' +
+    '<div class="cal-detail-header"><div class="cal-detail-date" id="cdet-date"></div><button class="cal-detail-close" onclick="calCloseDetail()">×</button></div>' +
+    '<div class="cal-bal-row"><div><div class="cal-bal-val" id="cdet-tdee" style="color:var(--muted)">—</div><div class="cal-bal-label">消費 kcal</div></div><div><div class="cal-bal-val" id="cdet-intake" style="color:var(--accent)">—</div><div class="cal-bal-label">摂取 kcal</div></div><div><div class="cal-bal-val" id="cdet-diff">—</div><div class="cal-bal-label">収支 kcal</div></div></div>' +
+    '<div class="cal-diff-badge" id="cdet-badge">—</div>' +
+    '<div id="cdet-macros"></div>' +
+    '<div id="cdet-judge"></div>' +
+    '<div id="cdet-meals"></div>' +
+    '</div></div>';
+
+  buildCalGrid();
+}
+
+function buildCalGrid() {
+  var y = calYear, m = calMonth;
+  document.getElementById('cal-month-label').textContent = y + '年 ' + m + '月';
+  var firstDay = new Date(y, m-1, 1).getDay();
+  var daysInMonth = new Date(y, m, 0).getDate();
+  var now = new Date();
+  var todayKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+
+  // pre-load all day data
+  var cache = {}, maxKcal = 0;
+  for (var dd = 1; dd <= daysInMonth; dd++) {
+    var d2 = calDayData(y, m, dd);
+    cache[dd] = d2;
+    if (d2 && d2.kcal > maxKcal) maxKcal = d2.kcal;
+  }
+
+  var days=0, defDays=0, surDays=0, sumDiff=0;
+  var grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+
+  for (var e = 0; e < firstDay; e++) {
+    var el = document.createElement('div'); el.className = 'cal-cell cal-empty'; grid.appendChild(el);
+  }
+
+  for (var d = 1; d <= daysInMonth; d++) {
+    var data = cache[d];
+    var key = y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    var cell = document.createElement('div');
+    cell.className = 'cal-cell';
+    if (key === todayKey) cell.classList.add('cal-today');
+
+    if (data) {
+      days++; sumDiff += data.diff;
+      var isDeficit = data.diff < 0;
+      if (isDeficit) defDays++; else surDays++;
+      cell.classList.add(isDeficit ? 'cal-deficit' : 'cal-surplus');
+      var fillH = Math.max(8, Math.round((data.kcal / Math.max(maxKcal,1)) * 55));
+      var fillColor = isDeficit ? 'rgba(0,229,160,0.15)' : 'rgba(255,107,53,0.15)';
+      var diffColor = isDeficit ? 'var(--accent)' : 'var(--accent2)';
+      var diffSign  = isDeficit ? '' : '+';
+      cell.innerHTML =
+        '<div class="cal-fill" style="height:'+fillH+'%;background:'+fillColor+'"></div>' +
+        '<div class="cal-day-num" style="color:var(--text)">'+d+'</div>' +
+        '<div class="cal-kcal-lbl" style="color:'+diffColor+'">'+data.kcal+'</div>' +
+        '<div class="cal-diff-lbl" style="color:'+diffColor+'">'+diffSign+data.diff+'</div>';
+      (function(dd){ cell.addEventListener('click', function(){ calOpenDetail(dd); }); })(d);
+    } else {
+      cell.innerHTML = '<div class="cal-day-num" style="color:var(--text);opacity:0.3">'+d+'</div>';
+      cell.style.cursor = 'default';
+    }
+    grid.appendChild(cell);
+  }
+
+  document.getElementById('csum-days').textContent    = days;
+  document.getElementById('csum-deficit').textContent  = defDays;
+  document.getElementById('csum-surplus').textContent  = surDays;
+  document.getElementById('csum-avg').textContent = days ? (sumDiff>=0?'+':'')+Math.round(sumDiff/days) : '—';
+
+  buildCalChart(cache, daysInMonth, y, m);
+  buildBodyChart();
+}
+
+function buildCalChart(cache, daysInMonth, y, m) {
+  var el = document.getElementById('cal-chart-inner');
+  if (!el) return;
+
+  var points = [];
+  for (var d = 1; d <= daysInMonth; d++) {
+    var data = cache[d];
+    if (data) points.push({ d: d, diff: data.diff });
+  }
+  if (points.length === 0) {
+    el.innerHTML = '<div class="chart-no-data">この月の記録がありません</div>';
+    return;
+  }
+
+  var n = points.length;
+  var avgDiff = points.reduce(function(s,p){ return s + p.diff; }, 0) / n;
+  var isDeficit = avgDiff <= 0;
+  var avgColor  = isDeficit ? '#00e5a0' : '#ff6b35';
+  var avgSign   = avgDiff >= 0 ? '+' : '';
+
+  // ── Dimensions ──
+  var cellW = Math.max(34, Math.min(52, 500 / n));
+  var W  = Math.max(n * cellW + 80, 300);
+  var H  = 180;
+  var padL = 52, padR = 72, padT = 24, padB = 28;
+  var innerW = W - padL - padR;
+  var innerH = H - padT - padB;
+
+  // ── Y scale: daily diff values, 0 in center ──
+  var allDiff = points.map(function(p){ return p.diff; });
+  var maxAbs  = Math.max.apply(null, allDiff.map(Math.abs));
+  maxAbs      = Math.max(maxAbs, 200);
+  var yMax    =  maxAbs * 1.25;
+  var yMin    = -maxAbs * 1.25;
+  var yRange  = yMax - yMin;
+
+  function fy(v) {
+    return padT + innerH - ((v - yMin) / yRange) * innerH;
+  }
+  var zeroY = fy(0);
+  var avgY  = fy(avgDiff);
+
+  // x positions
+  var xs = points.map(function(_, i){
+    return padL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+  });
+
+  var svgNS = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.style.overflow = 'visible';
+
+  function mk(tag, attrs) {
+    var e2 = document.createElementNS(svgNS, tag);
+    Object.keys(attrs).forEach(function(k){ e2.setAttribute(k, attrs[k]); });
+    return e2;
+  }
+
+  // ── defs ──
+  var defs = mk('defs', {});
+
+  // Gradient above zero (deficit = green going up)
+  var gUp = mk('linearGradient', { id:'gUp'+y+m, x1:0, y1:0, x2:0, y2:1 });
+  gUp.appendChild(mk('stop', { offset:'0%',   'stop-color':'#00e5a0', 'stop-opacity':0.30 }));
+  gUp.appendChild(mk('stop', { offset:'100%', 'stop-color':'#00e5a0', 'stop-opacity':0.04 }));
+  defs.appendChild(gUp);
+
+  // Gradient below zero (surplus = orange going down)
+  var gDn = mk('linearGradient', { id:'gDn'+y+m, x1:0, y1:0, x2:0, y2:1 });
+  gDn.appendChild(mk('stop', { offset:'0%',   'stop-color':'#ff6b35', 'stop-opacity':0.04 }));
+  gDn.appendChild(mk('stop', { offset:'100%', 'stop-color':'#ff6b35', 'stop-opacity':0.30 }));
+  defs.appendChild(gDn);
+
+  svg.appendChild(defs);
+
+  // ── Grid lines (light) ──
+  [-1, -0.5, 0, 0.5, 1].forEach(function(t) {
+    var gv = t * maxAbs;
+    var gy = fy(gv);
+    var isZero = t === 0;
+    svg.appendChild(mk('line', {
+      x1: padL, x2: W - padR, y1: gy, y2: gy,
+      stroke: isZero ? 'rgba(168,176,204,0.5)' : 'rgba(58,68,96,0.5)',
+      'stroke-width': isZero ? 1 : 0.5
+    }));
+    if (t !== 0) {
+      var gt = mk('text', { x: padL - 4, y: gy + 3, 'font-size': 8,
+        fill: 'rgba(240,242,250,0.38)', 'text-anchor': 'end',
+        'font-family': 'Noto Sans JP,sans-serif' });
+      gt.textContent = (t > 0 ? '+' : '') + Math.round(gv);
+      svg.appendChild(gt);
+    }
+  });
+
+  // ── 0 label ──
+  var zl = mk('text', { x: padL - 4, y: zeroY + 3, 'font-size': 8,
+    fill: 'rgba(240,242,250,0.55)', 'text-anchor': 'end',
+    'font-family': 'Noto Sans JP,sans-serif' });
+  zl.textContent = '0';
+  svg.appendChild(zl);
+
+  if (n > 1) {
+    // ── Build bezier wave path ──
+    function wavePath(pts) {
+      var path = 'M ' + xs[0] + ' ' + fy(pts[0].diff);
+      for (var i = 1; i < pts.length; i++) {
+        var cpx = (xs[i-1] + xs[i]) / 2;
+        path += ' C ' + cpx + ' ' + fy(pts[i-1].diff) + ' ' + cpx + ' ' + fy(pts[i].diff) + ' ' + xs[i] + ' ' + fy(pts[i].diff);
+      }
+      return path;
+    }
+    var wPath = wavePath(points);
+
+    // ── Filled area above zero (deficit zone) — clip wave to above zeroY ──
+    var fillAbove = wPath + ' L ' + xs[n-1] + ' ' + zeroY + ' L ' + xs[0] + ' ' + zeroY + ' Z';
+    svg.appendChild(mk('path', { d: fillAbove, fill: 'url(#gUp'+y+m+')', 'clip-path': 'none' }));
+
+    // ── Filled area below zero (surplus zone) ──
+    var fillBelow = wPath + ' L ' + xs[n-1] + ' ' + zeroY + ' L ' + xs[0] + ' ' + zeroY + ' Z';
+    // We draw both fills and let the wave color read from the dominant side
+    svg.appendChild(mk('path', { d: fillBelow, fill: 'url(#gDn'+y+m+')' }));
+
+    // ── Wave line (color per segment by sign) ──
+    for (var si = 1; si < n; si++) {
+      var segColor = ((points[si-1].diff + points[si].diff) / 2) < 0 ? '#00e5a0' : '#ff6b35';
+      var cpxs = (xs[si-1] + xs[si]) / 2;
+      var seg = 'M ' + xs[si-1] + ' ' + fy(points[si-1].diff) +
+        ' C ' + cpxs + ' ' + fy(points[si-1].diff) + ' ' + cpxs + ' ' + fy(points[si].diff) + ' ' + xs[si] + ' ' + fy(points[si].diff);
+      svg.appendChild(mk('path', { d: seg, fill: 'none', stroke: segColor, 'stroke-width': 2.5, 'stroke-linecap': 'round' }));
+    }
+  }
+
+  // ── Average diff horizontal line ──
+  svg.appendChild(mk('line', {
+    x1: padL, x2: W - padR, y1: avgY, y2: avgY,
+    stroke: avgColor, 'stroke-width': 1.8, 'stroke-dasharray': '6,3', opacity: 0.9
+  }));
+
+  // Avg label
+  var al1 = mk('text', { x: W - padR + 5, y: avgY - 4, 'font-size': 8,
+    fill: avgColor, 'font-family': 'Noto Sans JP,sans-serif', 'font-weight': 'bold' });
+  al1.textContent = '平均収支';
+  svg.appendChild(al1);
+  var al2 = mk('text', { x: W - padR + 5, y: avgY + 8, 'font-size': 8,
+    fill: avgColor, 'font-family': 'Noto Sans JP,sans-serif' });
+  al2.textContent = avgSign + Math.round(avgDiff) + ' kcal';
+  svg.appendChild(al2);
+
+  // ── Data points ──
+  points.forEach(function(p, i) {
+    var dotColor = p.diff <= 0 ? '#00e5a0' : '#ff6b35';
+    svg.appendChild(mk('circle', { cx: xs[i], cy: fy(p.diff), r: 3.5,
+      fill: dotColor, stroke: '#1c2130', 'stroke-width': 1.5 }));
+    var dl = mk('text', { x: xs[i], y: H - 2, 'font-size': 8,
+      fill: 'rgba(240,242,250,0.4)', 'text-anchor': 'middle',
+      'font-family': 'Noto Sans JP,sans-serif' });
+    dl.textContent = p.d + '日';
+    svg.appendChild(dl);
+  });
+
+  el.innerHTML = '';
+  el.appendChild(svg);
+}
+// ── Body Composition Chart ──
+var bodyMetricsOn = { weight: true, fat: true, muscle: true, tdee: true };
+
+function toggleBodyMetric(btn, metric) {
+  bodyMetricsOn[metric] = !bodyMetricsOn[metric];
+  btn.className = 'bcf-btn' + (bodyMetricsOn[metric] ? ' on' : '');
+  buildBodyChart();
+}
+
+function buildBodyChart() {
+  var el = document.getElementById('body-chart-inner');
+  if (!el) return;
+
+  var history = getBodyHistory().slice().reverse(); // oldest first
+  if (history.length === 0) {
+    el.innerHTML = '<div class="chart-no-data">体組成の記録がありません</div>';
+    return;
+  }
+
+  // Metrics config: { key, label, color, unit, scale }
+  var metrics = [
+    { key:'weight', label:'体重',     color:'#74c7ff', unit:'kg' },
+    { key:'fat',    label:'体脂肪率', color:'#ff6b35', unit:'%'  },
+    { key:'muscle', label:'筋肉量',   color:'#00e5a0', unit:'kg' },
+    { key:'tdee',   label:'消費kcal', color:'#ffd166', unit:'kcal' },
+  ].filter(function(m){ return bodyMetricsOn[m.key]; });
+
+  if (metrics.length === 0) {
+    el.innerHTML = '<div class="chart-no-data">表示する項目を選んでください</div>';
+    return;
+  }
+
+  var n = history.length;
+  var cellW = Math.max(40, Math.min(64, 540 / Math.max(n,1)));
+  var W = Math.max(n * cellW + 80, 300);
+  var H = 200;
+  var padL = 46, padR = 16, padT = 20, padB = 30;
+  var innerW = W - padL - padR;
+  var innerH = H - padT - padB;
+
+  var xs = history.map(function(_, i) {
+    return padL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+  });
+
+  var svgNS = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.style.overflow = 'visible';
+
+  function mk(tag, attrs) {
+    var e2 = document.createElementNS(svgNS, tag);
+    Object.keys(attrs).forEach(function(k) { e2.setAttribute(k, attrs[k]); });
+    return e2;
+  }
+
+  var defs = mk('defs', {});
+  svg.appendChild(defs);
+
+  // Draw each metric on its own normalized y-scale
+  metrics.forEach(function(m, mi) {
+    var vals = history.map(function(h) {
+      var v = h[m.key];
+      return (v !== null && v !== undefined && !isNaN(v)) ? v : null;
+    });
+    var validVals = vals.filter(function(v) { return v !== null; });
+    if (validVals.length === 0) return;
+
+    var vMax = Math.max.apply(null, validVals);
+    var vMin = Math.min.apply(null, validVals);
+    var vRange = Math.max(vMax - vMin, vMax * 0.05, 1);
+    vMax += vRange * 0.15;
+    vMin = Math.max(0, vMin - vRange * 0.15);
+    vRange = vMax - vMin;
+
+    function vy(v) {
+      return padT + innerH - ((v - vMin) / vRange) * innerH;
+    }
+
+    // y-axis label (only for first metric)
+    if (mi === 0) {
+      [0, 0.5, 1].forEach(function(t) {
+        var gv = vMin + t * vRange;
+        var gy = vy(gv);
+        svg.appendChild(mk('line', {
+          x1: padL, x2: W - padR, y1: gy, y2: gy,
+          stroke: 'rgba(58,68,96,0.4)', 'stroke-width': 0.5
+        }));
+        var gt = mk('text', { x: padL - 4, y: gy + 3, 'font-size': 8,
+          fill: 'rgba(240,242,250,0.35)', 'text-anchor': 'end',
+          'font-family': 'Noto Sans JP,sans-serif' });
+        gt.textContent = Math.round(gv);
+        svg.appendChild(gt);
+      });
+    }
+
+    // Build connected points (skip nulls)
+    var segments = [];
+    var currentSeg = [];
+    vals.forEach(function(v, i) {
+      if (v !== null) {
+        currentSeg.push({ x: xs[i], y: vy(v), v: v });
+      } else {
+        if (currentSeg.length > 0) { segments.push(currentSeg); currentSeg = []; }
+      }
+    });
+    if (currentSeg.length > 0) segments.push(currentSeg);
+
+    // Gradient fill
+    var gradId = 'bg_' + m.key;
+    var grad = mk('linearGradient', { id: gradId, x1: 0, y1: 0, x2: 0, y2: 1 });
+    grad.appendChild(mk('stop', { offset: '0%', 'stop-color': m.color, 'stop-opacity': 0.18 }));
+    grad.appendChild(mk('stop', { offset: '100%', 'stop-color': m.color, 'stop-opacity': 0.0 }));
+    defs.appendChild(grad);
+
+    segments.forEach(function(seg) {
+      if (seg.length < 2) return;
+      // Fill area
+      var fillD = 'M ' + seg[0].x + ' ' + (padT + innerH);
+      fillD += ' L ' + seg[0].x + ' ' + seg[0].y;
+      for (var i = 1; i < seg.length; i++) {
+        var cpx = (seg[i-1].x + seg[i].x) / 2;
+        fillD += ' C ' + cpx + ' ' + seg[i-1].y + ' ' + cpx + ' ' + seg[i].y + ' ' + seg[i].x + ' ' + seg[i].y;
+      }
+      fillD += ' L ' + seg[seg.length-1].x + ' ' + (padT + innerH) + ' Z';
+      svg.appendChild(mk('path', { d: fillD, fill: 'url(#' + gradId + ')' }));
+
+      // Wave line
+      var lineD = 'M ' + seg[0].x + ' ' + seg[0].y;
+      for (var j = 1; j < seg.length; j++) {
+        var cpxL = (seg[j-1].x + seg[j].x) / 2;
+        lineD += ' C ' + cpxL + ' ' + seg[j-1].y + ' ' + cpxL + ' ' + seg[j].y + ' ' + seg[j].x + ' ' + seg[j].y;
+      }
+      svg.appendChild(mk('path', { d: lineD, fill: 'none',
+        stroke: m.color, 'stroke-width': 2, 'stroke-linecap': 'round' }));
+    });
+
+    // Dots + value labels
+    vals.forEach(function(v, i) {
+      if (v === null) return;
+      var cx = xs[i], cy = vy(v);
+      svg.appendChild(mk('circle', { cx: cx, cy: cy, r: 3,
+        fill: m.color, stroke: '#1c2130', 'stroke-width': 1.5 }));
+      // value tooltip above dot (only if single metric or enough space)
+      if (metrics.length === 1) {
+        var vt = mk('text', { x: cx, y: cy - 6, 'font-size': 8,
+          fill: m.color, 'text-anchor': 'middle',
+          'font-family': 'Noto Sans JP,sans-serif' });
+        vt.textContent = v % 1 === 0 ? v : v.toFixed(1);
+        svg.appendChild(vt);
+      }
+    });
+  });
+
+  // Legend (bottom)
+  var legendX = padL;
+  metrics.forEach(function(m) {
+    var dot = mk('circle', { cx: legendX + 5, cy: H - 8, r: 4, fill: m.color });
+    svg.appendChild(dot);
+    var lt = mk('text', { x: legendX + 12, y: H - 5, 'font-size': 8,
+      fill: 'rgba(240,242,250,0.6)', 'font-family': 'Noto Sans JP,sans-serif' });
+    lt.textContent = m.label;
+    svg.appendChild(lt);
+    legendX += m.label.length * 6 + 22;
+  });
+
+  // X-axis date labels
+  history.forEach(function(h, i) {
+    if (n > 10 && i % 2 !== 0) return; // skip alternate labels if crowded
+    var lbl = mk('text', { x: xs[i], y: H - padB + 14, 'font-size': 8,
+      fill: 'rgba(240,242,250,0.38)', 'text-anchor': 'middle',
+      'font-family': 'Noto Sans JP,sans-serif' });
+    lbl.textContent = h.date.slice(5).replace('-', '/');
+    svg.appendChild(lbl);
+  });
+
+  el.innerHTML = '';
+  el.appendChild(svg);
+}
+
+// ── Meal Log Page ──
+var mlogYear, mlogMonth;
+var DOWS = ['日','月','火','水','木','金','土'];
+
+function renderMealLog() {
+  var now = new Date();
+  if (!mlogYear)  mlogYear  = now.getFullYear();
+  if (!mlogMonth) mlogMonth = now.getMonth() + 1;
+
+  var page = document.getElementById('page-meallog');
+  page.innerHTML =
+    '<div class="main">' +
+    '<div class="mlog-header">' +
+    '<div class="mlog-month-nav">' +
+    '<button class="mlog-month-btn" onclick="mlogChangeMonth(-1)">‹</button>' +
+    '<div class="mlog-month-label" id="mlog-month-label"></div>' +
+    '<button class="mlog-month-btn" onclick="mlogChangeMonth(1)">›</button>' +
+    '</div>' +
+    '</div>' +
+    '<div id="mlog-list"></div>' +
+    '</div>';
+
+  buildMealLog();
+}
+
+function mlogChangeMonth(delta) {
+  mlogMonth += delta;
+  if (mlogMonth > 12) { mlogMonth = 1; mlogYear++; }
+  if (mlogMonth < 1)  { mlogMonth = 12; mlogYear--; }
+  buildMealLog();
+}
+
+function buildMealLog() {
+  var y = mlogYear, m = mlogMonth;
+  var label = document.getElementById('mlog-month-label');
+  if (label) label.textContent = y + '年 ' + m + '月';
+
+  var daysInMonth = new Date(y, m, 0).getDate();
+  var goals = getGoals();
+  var profile = getBodyProfile();
+  var tdee = calcTDEE(profile);
+  var now = new Date();
+  var todayStr = y + '-' + String(m).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+
+  var html = '';
+  var hasAny = false;
+
+  for (var d = daysInMonth; d >= 1; d--) {
+    var key = y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    var dayLogs;
+    try { dayLogs = JSON.parse(localStorage.getItem('bc_logs_' + key) || 'null') || {}; }
+    catch(e) { dayLogs = {}; }
+
+    var items = [];
+    MEAL_TYPES.forEach(function(t) { (dayLogs[t]||[]).forEach(function(i){ items.push(Object.assign({meal:t},i)); }); });
+    if (!items.length) continue;
+
+    hasAny = true;
+    var totalKcal = Math.round(items.reduce(function(s,i){ return s+i.kcal; },0));
+    var totalP    = Math.round(items.reduce(function(s,i){ return s+i.p;    },0));
+    var totalC    = Math.round(items.reduce(function(s,i){ return s+i.c;    },0));
+    var totalF    = Math.round(items.reduce(function(s,i){ return s+i.f;    },0));
+    var diff      = totalKcal - tdee;
+    var isDeficit = diff < 0;
+    var diffLabel = (isDeficit ? '−' : '+') + Math.abs(diff).toLocaleString() + ' kcal';
+    var diffClass = isDeficit ? 'mlog-diff-deficit' : 'mlog-diff-surplus';
+
+    var dow = DOWS[new Date(y, m-1, d).getDay()];
+    var isToday = key === todayStr;
+    var dateColor = isToday ? 'color:var(--accent)' : '';
+
+    // Meal groups
+    var mealHTML = '';
+    MEAL_TYPES.forEach(function(type) {
+      var typeItems = dayLogs[type] || [];
+      if (!typeItems.length) return;
+      var groupKcal = Math.round(typeItems.reduce(function(s,i){ return s+i.kcal; },0));
+      mealHTML += '<div class="mlog-meal-group">' +
+        '<div class="mlog-meal-label"><span>' + type + '</span><span>' + groupKcal + ' kcal</span></div>';
+      typeItems.forEach(function(item) {
+        var editOnclick = 'openEditFromLog(' + JSON.stringify(key) + ',' + JSON.stringify(type) + ',' + JSON.stringify(String(item.id)) + ')';
+        mealHTML += '<div class="mlog-meal-item" onclick="' + editOnclick + '">' +
+          '<div><div class="mlog-meal-name">' + item.name + '</div>' +
+          '<div class="mlog-meal-macros">P ' + item.p + 'g · C ' + item.c + 'g · F ' + item.f + 'g</div></div>' +
+          '<div class="mlog-meal-kcal">' + item.kcal + '</div>' +
+          '</div>';
+      });
+      mealHTML += '</div>';
+    });
+
+    // PFC summary chips
+    var pfcHTML =
+      '<div class="mlog-pfc-row">' +
+      '<div class="mlog-pfc-chip"><div class="mlog-pfc-val" style="color:#ff6b6b">' + totalP + '</div><div class="mlog-pfc-label">タンパク質 g</div></div>' +
+      '<div class="mlog-pfc-chip"><div class="mlog-pfc-val" style="color:#ffd166">' + totalC + '</div><div class="mlog-pfc-label">炭水化物 g</div></div>' +
+      '<div class="mlog-pfc-chip"><div class="mlog-pfc-val" style="color:#06d6a0">' + totalF + '</div><div class="mlog-pfc-label">脂質 g</div></div>' +
+      '<div class="mlog-pfc-chip"><div class="mlog-pfc-val" style="color:' + (isDeficit?'var(--accent)':'var(--accent2)') + '">' + (isDeficit?'−':'+') + Math.abs(diff) + '</div><div class="mlog-pfc-label">収支 kcal</div></div>' +
+      '</div>';
+
+    html +=
+      '<div class="mlog-day-card" id="mlog-' + key + '">' +
+      '<div class="mlog-day-header" onclick="toggleMlogDay(' + JSON.stringify(key) + ')">' +
+      '<div class="mlog-day-left">' +
+      '<div>' +
+      '<div class="mlog-day-date" style="' + dateColor + '">' + m + '/' + d + (isToday?' 🔴':'') + '</div>' +
+      '<div class="mlog-day-dow">' + dow + '曜日</div>' +
+      '</div>' +
+      '<div class="mlog-day-summary">' +
+      '<div class="mlog-kcal-badge" style="color:var(--text)">' + totalKcal.toLocaleString() + ' kcal</div>' +
+      '<div class="mlog-diff-badge ' + diffClass + '">' + diffLabel + '</div>' +
+      '</div>' +
+      '</div>' +
+      '<span class="mlog-chevron">›</span>' +
+      '</div>' +
+      '<div class="mlog-day-body">' +
+      mealHTML + pfcHTML +
+      '</div>' +
+      '</div>';
+  }
+
+  if (!hasAny) {
+    html = '<div class="mlog-no-record">この月の記録がありません</div>';
+  }
+
+  var listEl = document.getElementById('mlog-list');
+  if (listEl) listEl.innerHTML = html;
+}
+
+function toggleMlogDay(key) {
+  var card = document.getElementById('mlog-' + key);
+  if (!card) return;
+  card.classList.toggle('open');
+}
+
+function openEditFromLog(dateKey, type, itemId) {
+  // Switch to record tab on that day, then open edit modal
+  var now = new Date();
+  var todayKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  var parts = dateKey.split('-');
+  var targetY = parseInt(parts[0]);
+  var targetM = parseInt(parts[1]);
+  var targetD = parseInt(parts[2]);
+  var today = new Date();
+  var diff = Math.round((new Date(targetY, targetM-1, targetD) - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
+  currentDay = diff;
+  switchPage('record');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  document.getElementById('current-date').textContent = formatDate(currentDay);
+  render();
+  setTimeout(function() { openEdit(type, itemId); }, 200);
+}
+
+function calChangeMonth(delta) {
+  calMonth += delta;
+  if (calMonth > 12) { calMonth = 1; calYear++; }
+  if (calMonth <  1) { calMonth = 12; calYear--; }
+  calCloseDetail();
+  buildCalGrid();
+}
+
+function calOpenDetail(d) {
+  // highlight
+  if (calSelectedCell) calSelectedCell.classList.remove('cal-selected');
+  var cells = document.querySelectorAll('.cal-cell');
+  var firstDay = new Date(calYear, calMonth-1, 1).getDay();
+  calSelectedCell = cells[firstDay + d - 1];
+  if (calSelectedCell) calSelectedCell.classList.add('cal-selected');
+
+  var data = calDayData(calYear, calMonth, d);
+  var panel = document.getElementById('cal-detail');
+  panel.classList.add('visible');
+  document.getElementById('cdet-date').textContent = calYear+'年'+calMonth+'月'+d+'日';
+
+  if (!data) {
+    ['cdet-tdee','cdet-intake','cdet-diff'].forEach(function(id){ document.getElementById(id).textContent='—'; });
+    document.getElementById('cdet-badge').textContent='この日の記録はありません';
+    document.getElementById('cdet-badge').className='cal-diff-badge';
+    document.getElementById('cdet-macros').innerHTML='';
+    document.getElementById('cdet-judge').innerHTML='';
+    document.getElementById('cdet-meals').innerHTML='<div class="cal-no-data">食事の記録がありません</div>';
+    panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+    return;
+  }
+
+  var goals = getGoals();
+  document.getElementById('cdet-tdee').textContent   = data.tdee.toLocaleString();
+  document.getElementById('cdet-intake').textContent = data.kcal.toLocaleString();
+  var diffEl = document.getElementById('cdet-diff');
+  diffEl.textContent = (data.diff>=0?'+':'')+data.diff.toLocaleString();
+  diffEl.style.color = data.diff<0 ? 'var(--accent)' : 'var(--accent2)';
+
+  var badge = document.getElementById('cdet-badge');
+  if (data.diff < 0) {
+    badge.textContent = '🟢 赤字 '+Math.abs(data.diff).toLocaleString()+' kcal — 脂肪燃焼ゾーン';
+    badge.className = 'cal-diff-badge deficit';
+  } else {
+    badge.textContent = '🔴 黒字 +'+data.diff.toLocaleString()+' kcal — カロリーオーバー';
+    badge.className = 'cal-diff-badge surplus';
+  }
+
+  // Macros
+  document.getElementById('cdet-macros').innerHTML =
+    calMacroBar('タンパク質', data.p, goals.p, '#ff6b6b') +
+    calMacroBar('炭水化物',   data.c, goals.c, '#ffd166') +
+    calMacroBar('脂質',       data.f, goals.f, '#06d6a0');
+
+  // Judge
+  var judgeHTML = '';
+  if (data.judge) {
+    var gc = {S:'#ffd700',A:'#00e5a0',B:'#74c7ff',C:'#ffd166',D:'#ff6b35'}[data.judge.grade]||'#ffd166';
+    judgeHTML = '<div style="margin-bottom:12px;">' +
+      '<div style="font-size:10px;color:var(--text);opacity:0.6;margin-bottom:5px;font-weight:700;letter-spacing:1px;">💪 筋肉増大スコア</div>' +
+      '<div class="cal-judge-badge">' +
+      '<span class="cal-judge-grade" style="color:'+gc+'">'+data.judge.grade+'</span>' +
+      '<span style="font-size:13px;">'+data.judge.score+'点</span>' +
+      '<span style="font-size:11px;color:var(--text);opacity:0.65;">'+( data.judge.headline||'')+'</span>' +
+      '</div></div>';
+  }
+  document.getElementById('cdet-judge').innerHTML = judgeHTML;
+
+  // Meals
+  var mealHTML = '';
+  MEAL_TYPES.forEach(function(type) {
+    var items = data.dayLogs[type]||[];
+    if (!items.length) return;
+    var gk = items.reduce(function(s,i){ return s+i.kcal; },0);
+    mealHTML += '<div class="cal-meal-group"><div class="cal-meal-header">'+type+' — '+Math.round(gk)+' kcal</div>';
+    items.forEach(function(item){
+      mealHTML += '<div class="cal-meal-item"><div><div>'+item.name+'</div><div class="cal-meal-macros">P '+item.p+'g · C '+item.c+'g · F '+item.f+'g</div></div><div class="cal-meal-kcal">'+item.kcal+'</div></div>';
+    });
+    mealHTML += '</div>';
+  });
+  document.getElementById('cdet-meals').innerHTML = mealHTML || '<div class="cal-no-data">食事の記録がありません</div>';
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function calMacroBar(label, val, goal, color) {
+  var pct = Math.min(val/(goal||1)*100, 100);
+  return '<div class="cal-macro-row">' +
+    '<div class="cal-macro-labels"><span style="color:var(--text);opacity:0.75">'+label+'</span><span style="font-weight:500">'+val+' / '+goal+'g</span></div>' +
+    '<div class="cal-bar-track"><div class="cal-bar-fill" style="background:'+color+';width:'+pct+'%"></div></div>' +
+    '</div>';
+}
+
+function calCloseDetail() {
+  var panel = document.getElementById('cal-detail');
+  if (panel) panel.classList.remove('visible');
+  if (calSelectedCell) { calSelectedCell.classList.remove('cal-selected'); calSelectedCell = null; }
+}
+
+// ── Input Mode Switch ──
+function switchInputMode(mode) {
+  document.getElementById('input-mode-text').style.display  = mode === 'text'  ? '' : 'none';
+  document.getElementById('input-mode-image').style.display = mode === 'image' ? '' : 'none';
+  document.getElementById('imode-text').className  = 'imode-tab' + (mode === 'text'  ? ' active' : '');
+  document.getElementById('imode-image').className = 'imode-tab' + (mode === 'image' ? ' active' : '');
+  if (mode === 'image') clearImgInput();
+}
+
+// ── Image Analysis ──
+var imgBase64 = null;
+var imgMediaType = 'image/jpeg';
+var imgSelectedItems = [];
+
+function handleImgDrop(e) {
+  e.preventDefault();
+  document.getElementById('img-drop-zone').classList.remove('drag-over');
+  var file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImgFile(file);
+}
+
+function handleImgFile(input) {
+  var file = input.files[0];
+  if (file) loadImgFile(file);
+}
+
+function loadImgFile(file) {
+  imgMediaType = file.type || 'image/jpeg';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    imgBase64 = dataUrl.split(',')[1];
+    var preview = document.getElementById('img-preview');
+    preview.src = dataUrl;
+    document.getElementById('img-preview-wrap').style.display = 'block';
+    document.getElementById('img-drop-zone').style.display = 'none';
+    document.getElementById('img-analyze-btn').style.display = 'block';
+    document.getElementById('img-result-area').style.display = 'none';
+    imgSelectedItems = [];
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImgInput() {
+  imgBase64 = null;
+  imgSelectedItems = [];
+  document.getElementById('img-preview-wrap').style.display = 'none';
+  document.getElementById('img-drop-zone').style.display = 'block';
+  document.getElementById('img-analyze-btn').style.display = 'none';
+  document.getElementById('img-result-area').style.display = 'none';
+  document.getElementById('img-file-input').value = '';
+}
+
+async function analyzeImage() {
+  if (!imgBase64) return;
+  var btn = document.getElementById('img-analyze-btn');
+  btn.disabled = true; btn.textContent = '⏳ 解析中...';
+  document.getElementById('img-result-area').style.display = 'none';
+
+  try {
+    var response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 800,
+        system: 'あなたは栄養士です。食品の写真や栄養成分表示ラベルの画像から栄養素を推定し、必ずJSON形式のみで返してください。形式: {items:[{name,kcal,protein_g,carb_g,fat_g,serving}],note,type}', 
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: imgMediaType, data: imgBase64 } },
+            { type: 'text', text: '画像に含まれる食品や栄養成分表示を解析してください。栄養成分表示ラベルの場合は数値をそのまま読み取ってください。料理写真の場合はメニューを特定して栄養素を推定してください。' }
+          ]
+        }]
+      })
+    });
+    var data = await response.json();
+    var text = data.content.filter(function(b){ return b.type==='text'; }).map(function(b){ return b.text; }).join('');
+    var json = JSON.parse(text.replace(/```json|```/g,'').trim());
+
+    renderImgResults(json);
+  } catch(e) {
+    showToast('解析に失敗しました。もう一度お試しください。');
+    console.error(e);
+  } finally {
+    btn.disabled = false; btn.textContent = '🤖 AIで栄養素を解析する';
+  }
+}
+
+function renderImgResults(json) {
+  var listEl = document.getElementById('img-result-list');
+  var noteEl = document.getElementById('img-result-note');
+  var area   = document.getElementById('img-result-area');
+
+  imgSelectedItems = [];
+  var items = json.items || [];
+  var isLabel = json.type === 'label';
+
+  if (!items.length) {
+    listEl.innerHTML = '<div style="font-size:12px;color:var(--text);opacity:0.45;text-align:center;padding:12px;">食品を検出できませんでした</div>';
+    area.style.display = 'block';
+    document.getElementById('img-add-btn').style.display = 'none';
+    return;
+  }
+
+  listEl.innerHTML = items.map(function(item, i) {
+    return '<div class="img-result-item" id="img-item-'+i+'" onclick="toggleImgItem('+i+','+JSON.stringify(item).replace(/"/g,"'")+')">' +
+      '<div class="img-result-name">' + item.name + (item.serving ? ' <span style="font-size:10px;color:var(--text);opacity:0.5;font-weight:400;">（' + item.serving + '）</span>' : '') + '</div>' +
+      '<div class="img-result-chips">' +
+      '<div class="img-result-chip">' + Math.round(item.kcal) + '<span> kcal</span></div>' +
+      '<div class="img-result-chip">P ' + Math.round(item.protein_g) + '<span>g</span></div>' +
+      '<div class="img-result-chip">C ' + Math.round(item.carb_g) + '<span>g</span></div>' +
+      '<div class="img-result-chip">F ' + Math.round(item.fat_g) + '<span>g</span></div>' +
+      '</div></div>';
+  }).join('');
+
+  noteEl.textContent = json.note
+    ? (isLabel ? '📋 ' : '📸 ') + json.note
+    : isLabel ? '📋 栄養成分表示ラベルを読み取りました' : '📸 料理写真から推定しました（±20〜30%の誤差あり）';
+
+  area.style.display = 'block';
+  document.getElementById('img-add-btn').style.display = 'none';
+
+  // Auto-select if single item
+  if (items.length === 1) toggleImgItem(0, items[0]);
+}
+
+function toggleImgItem(idx, item) {
+  var el = document.getElementById('img-item-' + idx);
+  var existing = imgSelectedItems.findIndex(function(s){ return s._idx === idx; });
+  if (existing > -1) {
+    imgSelectedItems.splice(existing, 1);
+    el.classList.remove('selected');
+  } else {
+    var entry = { _idx: idx, name: item.name, kcal: Math.round(item.kcal),
+      p: Math.round(item.protein_g), c: Math.round(item.carb_g), f: Math.round(item.fat_g) };
+    imgSelectedItems.push(entry);
+    el.classList.add('selected');
+  }
+  document.getElementById('img-add-btn').style.display = imgSelectedItems.length ? 'block' : 'none';
+}
+
+function confirmImgAdd() {
+  if (!imgSelectedItems.length) return;
+  var logs = getLogs();
+  if (!logs[currentTab]) logs[currentTab] = [];
+  imgSelectedItems.forEach(function(item) {
+    logs[currentTab].push({
+      id: String(Date.now() + Math.random()),
+      name: item.name, kcal: item.kcal, p: item.p, c: item.c, f: item.f
+    });
+  });
+  saveLogs(logs);
+  showToast(imgSelectedItems.length + '件追加しました！');
+  clearImgInput();
+  switchInputMode('text');
+  render();
+}
+
+// ── Back to top scroll listener ──
+window.addEventListener('scroll', function() {
+  var btn = document.getElementById('back-to-top');
+  if (!btn) return;
+  if (window.scrollY > 300) btn.classList.add('visible');
+  else btn.classList.remove('visible');
+});
+
+document.getElementById('current-date').textContent = formatDate(0);
+renderBodyCard();
+loadCachedJudge();
+render();
+</script>
+</body>
+</html>
